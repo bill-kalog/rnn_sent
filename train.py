@@ -70,7 +70,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     # train fucntion
     def train_step(x_batch, y_batch):
-        print("batch lenght {}". format(len(x_batch)))
+        # print("batch lenght {}". format(len(x_batch)))
         feed_dict = {
             network.x: x_batch,
             network.y: y_batch,
@@ -78,6 +78,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # network.str_summary_type: "",
             network.input_keep_prob: config["keep_prob_inp"],
             network.output_keep_prob: config["keep_prob_out"],
+            network.seq_lengths: len(x_batch) * [config['n_words']],
+            network.batch_size: len(x_batch),
             # network.train_phase: True
         }
 
@@ -98,14 +100,14 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         train_summary_writer.add_summary(net_sum, current_step)
 
         time_str = datetime.datetime.now().isoformat()
-        print("{}: step {}, loss {}, acc {}".format(
-            time_str, current_step, loss, accuracy))
+        print("{}: step {}, loss {}, acc {}, b_len {}".format(
+            time_str, current_step, loss, accuracy, len(x_batch)))
 
         # train_summary_writer.add_summary(summaries, step)
         # grad_summaries_writer.add_summary(grad_summary, step)
         if current_step % config['evaluate_every'] == 0:
             pass
-            # dev_step(x_dev, y_dev)
+            dev_step(x_dev, y_dev)
 
     # dev function
     def dev_step(x_batch, y_batch):
@@ -116,6 +118,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # network.str_summary_type: "",
             network.input_keep_prob: config["keep_prob_inp"],
             network.output_keep_prob: config["keep_prob_out"],
+            network.seq_lengths: len(x_batch) * [config['n_words']],
+            network.batch_size: len(x_batch),
             # network.train_phase: False
         }
         # step, summaries, loss, accuracy = sess.run(
@@ -123,8 +127,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         #     feed_dict)
         output_ = [network.global_step, network.accuracy, network.mean_loss]
         current_step, accuracy, loss = sess.run(output_, feed_dict)
+        print("\nEvaluation dev set:")
         time_str = datetime.datetime.now().isoformat()
-        print("{}: step {}, loss {}, acc {}, b_len {}".format(
+        print("{}: step {}, loss {}, acc {}, b_len {}\n".format(
             time_str, current_step, loss, accuracy, len(x_batch)))
         # if writer:
         #     writer.add_summary(summaries, step)

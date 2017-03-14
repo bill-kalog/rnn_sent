@@ -8,10 +8,10 @@ config = {
 
     'dim_proj': 100,  # word embeding dimension and LSTM number of hidden units.
     'layers': 1,
-    'batch_size': 60,  # The batch size during training.
+    'batch_size': 120,  # The batch size during training.
     'n_epochs': 30,
     'n_words': None,  # Leave as None, dictionary size
-    'learning_rate': 1e-3,
+    'learning_rate': 1e-4,
     'dropout_rate': 0.7,
     'clip_threshold': 6,
     'sentence_len': None,  # max sentence length

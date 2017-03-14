@@ -10,7 +10,8 @@ class RNN(object):
     def __init__(self, config, sess, word_vectors=[]):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
-        self.batch_size = config['batch_size']
+        # self.batch_size = config['batch_size']
+        self.batch_size = tf.placeholder(tf.int32, name="batch_size")
         self.n_words = config['n_words']
         self.learning_rate = config['learning_rate']
         self.num_classes = config['classes_num']
@@ -27,7 +28,9 @@ class RNN(object):
         self.y = tf.placeholder(tf.float32, [None, self.num_classes], name="y")
         # self.seq_lengths = tf.placeholder(
         #     tf.int32, shape=[None], name="early_stop")
-        self.seq_lengths = [self.n_words] * config['batch_size']
+        # self.seq_lengths = [self.n_words] * config['batch_size']
+        self.seq_lengths = tf.placeholder(
+            tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
         # self.train_phase = tf.placeholder(tf.bool, name="train_flag")
