@@ -92,7 +92,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
         output_ = [network.update, network.global_step,
                    network.accuracy, network.mean_loss,
-                   network.train_summary_op]
+                   network.summary_op]
         _, current_step, accuracy, loss, net_sum = sess.run(output_, feed_dict)
         # if config['clipping_weights']:
         #     sess.run([weight_clipping])
@@ -125,8 +125,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # step, summaries, loss, accuracy = sess.run(
         #     [global_step, dev_summary_op, network.loss, network.accuracy],
         #     feed_dict)
-        output_ = [network.global_step, network.accuracy, network.mean_loss]
-        current_step, accuracy, loss = sess.run(output_, feed_dict)
+        output_ = [network.global_step, network.accuracy,
+                   network.mean_loss, network.summary_op]
+        current_step, accuracy, loss, net_sum = sess.run(output_, feed_dict)
+        # save summary
+        dev_summary_writer.add_summary(net_sum, current_step)
+
         print("\nEvaluation dev set:")
         time_str = datetime.datetime.now().isoformat()
         print("{}: step {}, loss {}, acc {}, b_len {}\n".format(

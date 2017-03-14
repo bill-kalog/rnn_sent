@@ -140,6 +140,6 @@ class RNN(object):
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
         # Train Summaries
-        self.train_summary_op = tf.summary.merge([loss_summary, acc_summary])
+        self.summary_op = tf.summary.merge([loss_summary, acc_summary])
         # Dev summaries
-        self.dev_summary_op = tf.summary.merge([loss_summary, acc_summary])
+        # self.dev_summary_op = tf.summary.merge([loss_summary, acc_summary])
