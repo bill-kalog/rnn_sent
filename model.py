@@ -89,6 +89,8 @@ class RNN(object):
         # split sentences in word steps of size batch_size
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
+        # rnn_input_back = [embedded_tokens[:, i, :] for i in range(
+        #     self.sentence_len - 1, -1, -1)]
 
         with tf.name_scope("LSTM"):
             rnn_cell = tf.contrib.rnn.DropoutWrapper(
@@ -103,13 +105,32 @@ class RNN(object):
             initial_state = rnn_cell_seq.zero_state(
                 self.batch_size, tf.float32)
             # Create a recurrent neural network
-            output, state = tf.contrib.rnn.static_rnn(
-                rnn_cell_seq, rnn_input,
-                initial_state=initial_state, sequence_length=self.seq_lengths
-            )
+
+            if config['bidirectional']:
+                rnn_cell_seq_bw = tf.contrib.rnn.MultiRNNCell(
+                    [rnn_cell] * self.layers
+                )
+                output, state_fw, state_bw = tf.contrib.rnn.static_bidirectional_rnn(
+                    inputs=rnn_input,
+                    cell_fw=rnn_cell_seq,
+                    cell_bw=rnn_cell_seq,
+                    initial_state_fw=initial_state,
+                    initial_state_bw=initial_state,
+                    sequence_length=self.seq_lengths
+                )
+                state_ = state_fw[-1][0] + state_bw[-1][0]
+            else:
+                output, state = tf.contrib.rnn.static_rnn(
+                    rnn_cell_seq, rnn_input,
+                    initial_state=initial_state,
+                    sequence_length=self.seq_lengths
+                )
+                state_ = state[-1][0]
+
         if config["pooling"]:
             with tf.name_scope("avg_pooling"):
-                self.h_pool = tf.reshape(state[-1][0], [self.batch_size, -1, 1, 1])
+                self.h_pool = tf.reshape(
+                    state_, [self.batch_size, -1, 1, 1])
                 self.pool = tf.nn.avg_pool(
                     self.h_pool, strides=[1, 1, 1, 1],
                     # ksize=[1, self.sentence_len + 1, 1, 1],
@@ -131,7 +152,7 @@ class RNN(object):
         else:
             with tf.name_scope("drop-out"):
                 # use the cell memory state for information on sentence embedding
-                self.l_drop = tf.nn.dropout(state[-1][0], self.dropout_prob)
+                self.l_drop = tf.nn.dropout(state_, self.dropout_prob)
 
             with tf.name_scope("fc_layer"):
                 shape = [self.dim_proj, self.num_classes]
