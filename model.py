@@ -15,6 +15,7 @@ class RNN(object):
         self.n_words = config['n_words']
         self.learning_rate = config['learning_rate']
         self.num_classes = config['classes_num']
+        self.word_vectors = word_vectors
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
         # self.str_summary_type = tf.placeholder(
         #     tf.string, name="str_summary_type")
@@ -72,9 +73,20 @@ class RNN(object):
                 tf.truncated_normal([self.n_words, self.dim_proj],
                                     stddev=0.01),
                 name="W_embeddings")
+            index_ = 0
+            self.w_embeddings = tf.get_variable(
+                        "W0_" + str(index_),
+                        shape=[self.n_words, self.dim_proj],
+                        trainable=config['train_embeddings'][index_],
+                        initializer=tf.constant_initializer(
+                            np.array(self.word_vectors[index_]))
+            )
+
             embedded_tokens = tf.nn.embedding_lookup(
                 self.w_embeddings, self.x)
+            print("emb_tokens {} rnn_input  ".format(embedded_tokens.shape))
             # embedded_tokens_drop = tf.nn.dropout(embedded_tokens, self.dropout_keep_prob_embedding)
+        # split sentences in word steps of size batch_size
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
 
@@ -95,20 +107,46 @@ class RNN(object):
                 rnn_cell_seq, rnn_input,
                 initial_state=initial_state, sequence_length=self.seq_lengths
             )
+        if config["pooling"]:
+            with tf.name_scope("avg_pooling"):
+                self.h_pool = tf.reshape(state[-1][0], [self.batch_size, -1, 1, 1])
+                self.pool = tf.nn.avg_pool(
+                    self.h_pool, strides=[1, 1, 1, 1],
+                    # ksize=[1, self.sentence_len + 1, 1, 1],
+                    ksize=[1, self.dim_proj, 1, 1],
+                    padding='VALID', name="pool"
+                )
+            with tf.name_scope("softmax"):
+                self.flat_pool = tf.reshape(self.pool, [-1, 1])
+                shape = [1, self.num_classes]
+                W = tf.Variable(
+                    tf.truncated_normal(shape, stddev=0.01), name='W'
+                )
+                b = tf.Variable(tf.constant(
+                    0.1, shape=[self.num_classes]),
+                    name="b"
+                )
+                self.scores = tf.nn.xw_plus_b(self.flat_pool, W, b)
 
-        with tf.name_scope("fc_layer"):
-            shape = [self.dim_proj, self.num_classes]
-            W = tf.Variable(
-                tf.truncated_normal(shape, stddev=0.01), name="W"
-            )
-            b = tf.Variable(tf.constant(
-                0.1, shape=[self.num_classes]),
-                trainable=True, name="b"
-            )
-            # use the cell memory state for information on sentence embedding
-            self.scores = tf.nn.xw_plus_b(state[-1][0], W, b)
-            self.y = tf.nn.softmax(self.scores)
-            self.predictions = tf.argmax(self.scores, 1)
+        else:
+            with tf.name_scope("drop-out"):
+                # use the cell memory state for information on sentence embedding
+                self.l_drop = tf.nn.dropout(state[-1][0], self.dropout_prob)
+
+            with tf.name_scope("fc_layer"):
+                shape = [self.dim_proj, self.num_classes]
+                W = tf.Variable(
+                    tf.truncated_normal(shape, stddev=0.01), name="W"
+                )
+                b = tf.Variable(tf.constant(
+                    0.1, shape=[self.num_classes]),
+                    trainable=True, name="b"
+                )
+
+                self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
+
+        self.y = tf.nn.softmax(self.scores)
+        self.predictions = tf.argmax(self.scores, 1)
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")

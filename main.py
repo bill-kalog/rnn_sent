@@ -13,10 +13,10 @@ dataset = Dataset("SST")
 
 # load pretrained word vectors
 pretrained_vectors = []
-# for index, type_ in enumerate(config['word_vector_type']):
-#     pretrained_vectors.append(WordVectors(
-#         type_, config["pretrained_vectors"][index]))
-#     print ("loaded vectors {}".format(config['word_vector_type'][index]))
+for index, type_ in enumerate(config['word_vector_type']):
+    pretrained_vectors.append(WordVectors(
+        type_, config["pretrained_vectors"][index]))
+    print ("loaded vectors {}".format(config['word_vector_type'][index]))
 
 
 # data = dataset.cv_split(index=5)

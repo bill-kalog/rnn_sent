@@ -5,9 +5,9 @@ config = {
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
 
-
+    'pooling': True,  # choose between pooling or fc layer
     'dim_proj': 100,  # word embeding dimension and LSTM number of hidden units.
-    'layers': 3,
+    'layers': 1,
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 50,
     'n_words': None,  # Leave as None, dictionary size
@@ -23,9 +23,13 @@ config = {
     'save_step': 500,
 
     # word embeddings args
-    # 'train_embeddings': [True, None],
-    # 'word_vector_type': ['glove'],
-    # 'pretrained_vectors': ['../datasets/glove_6B/glove.6B.100d.txt'],
+    'std_dev': 0.01,  # variance
+    'train_embeddings': [True, None],
+    'word_vector_type': ['glove'],
+    'pretrained_vectors': ['../datasets/glove_6B/glove.6B.100d.txt'],
+    'train_embeddings': [True],
+    'word_vector_type': [],
+    'pretrained_vectors': [],
 
 
 

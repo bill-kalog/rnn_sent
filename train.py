@@ -32,6 +32,28 @@ def init_vocabulary_processor(dx_train, dx_dev):
     return x_train, x_dev, vocab_dict, vocabulary
 
 
+def init_embeddings(config, pretrained_embeddings, vocabulary):
+    init_embd = config['std_dev'] * np.random.randn(
+        len(config['word_vector_type']) + 1,
+        len(vocabulary), config['dim_proj']
+    )
+    if pretrained_embeddings:
+        for index_3d, stored_embedding in enumerate(pretrained_embeddings):
+            counts = 0
+            mappings = {}
+            for index, entry in enumerate(vocabulary):
+                if entry in stored_embedding.word_to_index:
+                    vec_index = stored_embedding.word_to_index[entry]
+                    mappings[vec_index] = index
+                    counts += 1
+                    init_embd[index_3d, index] = \
+                        stored_embedding.vectors[vec_index]
+            print (" Found {} words in pretrained vectors {} out of {}".format(
+                counts, config['word_vector_type'][index_3d], len(vocabulary)))
+            stored_embedding.set_mappings(mappings)
+    return init_embd
+
+
 def set_train(sess, config, data, pretrained_embeddings=[]):
 
     dx_train, y_train, dx_dev, y_dev = data
@@ -47,6 +69,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     config['n_words'] = len(vocabulary)
     config['sentence_len'] = x_train.shape[1]
 
+    word_embd_tensor = init_embeddings(
+        config, pretrained_embeddings, vocabulary)
+
     # Output directory for models and summaries
     timestamp = str(int(time.time()))
     out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
@@ -54,7 +79,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     print("Writing to {}\n".format(out_dir))
 
     # network = RNN(config, sess, init_embd)
-    network = RNN(config, sess)
+    network = RNN(config, sess, word_embd_tensor)
 
     dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
     dev_summary_writer = tf.summary.FileWriter(
@@ -113,7 +138,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             pass
             dev_step(x_dev, y_dev)
 
-    # dev function
     def dev_step(x_batch, y_batch):
         feed_dict = {
             network.x: x_batch,
@@ -171,8 +195,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         saver = tf.train.Saver(embd_tensor)
         saver.save(sess, os.path.join(
             summary_path, 'embedding_.ckpt'))
-
-
 
 
 
