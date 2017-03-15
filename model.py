@@ -37,7 +37,7 @@ class RNN(object):
 
 
         self.make_graph(config)
-        self.saving(config, sess)
+        self.summarize(config, sess)
 
     def make_graph(self, config):
         """ Build RNN graph """
@@ -62,12 +62,18 @@ class RNN(object):
             # self.embedded_chars = tf.stack(all_embeddings, axis=3)
 
             # print ("emb_char shape: {}".format(self.embedded_chars.shape))
-            W = tf.get_variable(
-                "W",
-                [self.n_words, self.dim_proj],
-                initializer=tf.random_uniform_initializer(-1.0, 1.0)
-            )
-            embedded_tokens = tf.nn.embedding_lookup(W, self.x)
+            # self.w_embeddings = tf.get_variable(
+            #     "W_embeddings",
+            #     [self.n_words, self.dim_proj],
+            #     initializer=tf.random_uniform_initializer(-1.0, 1.0)
+
+            # )
+            self.w_embeddings = tf.Variable(
+                tf.truncated_normal([self.n_words, self.dim_proj],
+                                    stddev=0.01),
+                name="W_embeddings")
+            embedded_tokens = tf.nn.embedding_lookup(
+                self.w_embeddings, self.x)
             # embedded_tokens_drop = tf.nn.dropout(embedded_tokens, self.dropout_keep_prob_embedding)
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
@@ -134,8 +140,8 @@ class RNN(object):
         # self.merged = tf.merge_summary([self.mean_loss, acc_summ])
     # self.saver = tf.train.Saver(tf.globa())
 
-    def saving(self, config, sess):
-        out_dir = config['out_dir']
+    def summarize(self, config, sess):
+        # out_dir = config['out_dir']
         # Summaries for loss and accuracy
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)

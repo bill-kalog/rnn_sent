@@ -12,7 +12,7 @@ dataset = Dataset("SST")
 
 
 # load pretrained word vectors
-# pretrained_vectors = []
+pretrained_vectors = []
 # for index, type_ in enumerate(config['word_vector_type']):
 #     pretrained_vectors.append(WordVectors(
 #         type_, config["pretrained_vectors"][index]))
@@ -52,4 +52,4 @@ with tf.Graph().as_default():
     with sess.as_default():
         train.set_train(
             sess, config, data,
-            pretrained_embeddings=[])
+            pretrained_embeddings=pretrained_vectors)

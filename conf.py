@@ -2,12 +2,12 @@
 config = {
 
     'dat_directory': '../datasets',
-    'sst_finegrained': False,  # used only when/if loading SST choose [5, 2] classes
+    'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
 
 
-    'dim_proj': 300,  # word embeding dimension and LSTM number of hidden units.
-    'layers': 1,
+    'dim_proj': 100,  # word embeding dimension and LSTM number of hidden units.
+    'layers': 3,
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 50,
     'n_words': None,  # Leave as None, dictionary size
@@ -20,6 +20,12 @@ config = {
 
     'evaluate_every': 5,  # evaluate on dev set
 
+    'save_step': 500,
+
+    # word embeddings args
+    # 'train_embeddings': [True, None],
+    # 'word_vector_type': ['glove'],
+    # 'pretrained_vectors': ['../datasets/glove_6B/glove.6B.100d.txt'],
 
 
 

@@ -97,6 +97,10 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # if config['clipping_weights']:
         #     sess.run([weight_clipping])
         # cur_norm = sess.run([fc_layer_norm])
+        if config['save_step'] == current_step:
+            # save word embeddings
+            emb_m = sess.run([network.w_embeddings], feed_dict)
+            save_embedding(emb_m)
         train_summary_writer.add_summary(net_sum, current_step)
 
         time_str = datetime.datetime.now().isoformat()
@@ -137,6 +141,40 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             time_str, current_step, loss, accuracy, len(x_batch)))
         # if writer:
         #     writer.add_summary(summaries, step)
+
+    def save_embedding(embd_matrix):
+        summary_path = os.path.join(out_dir, 'summaries', 'embeddings')
+        if not os.path.exists(summary_path):
+            os.makedirs(summary_path)
+        # store metadata
+        metadata_path = os.path.join(
+            summary_path, 'metadata.tsv')
+        with open(metadata_path, 'w') as metadata_file:
+            for row in vocabulary:
+                metadata_file.write('{}\n'.format(row))
+
+        embd_tensor = []
+
+        writer = tf.summary.FileWriter(summary_path, sess.graph)
+        configuration = projector.ProjectorConfig()
+        for i_, sub_emb_tensor in enumerate(embd_matrix):
+            w_var = tf.Variable(sub_emb_tensor, name='embd_' + str(i_))
+            embd_tensor.append(w_var)
+            sess.run(w_var.initializer)
+
+            embedding = configuration.embeddings.add()
+            embedding.tensor_name = w_var.name
+            embedding.metadata_path = metadata_path
+            projector.visualize_embeddings(
+                writer, configuration)
+        sess.run(embd_tensor)
+        saver = tf.train.Saver(embd_tensor)
+        saver.save(sess, os.path.join(
+            summary_path, 'embedding_.ckpt'))
+
+
+
+
 
     # Generate batches
     print ("About to build batches for x:{} with number of words".format(
