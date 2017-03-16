@@ -34,6 +34,12 @@ class RNN(object):
             tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
+
+        # values vital when using minibatches on dev set
+        # really ugly workaround
+        self.metrics_weight = tf.placeholder(tf.float32, name="metrics_weight")
+        self.fixed_acc_value = tf.placeholder(tf.float32, name="f_acc_value")
+        self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
         # self.train_phase = tf.placeholder(tf.bool, name="train_flag")
 
 
@@ -92,12 +98,20 @@ class RNN(object):
         # rnn_input_back = [embedded_tokens[:, i, :] for i in range(
         #     self.sentence_len - 1, -1, -1)]
 
-        with tf.name_scope("LSTM"):
-            rnn_cell = tf.contrib.rnn.DropoutWrapper(
-                tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
-                input_keep_prob=self.input_keep_prob,
-                output_keep_prob=self.output_keep_prob
-            )
+        with tf.name_scope("rnn_cell"):
+            if config['GRU']:  # use GRU cell
+                # rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                #     tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+                #     input_keep_prob=self.input_keep_prob,
+                #     output_keep_prob=self.output_keep_prob
+                # )
+                rnn_cell = tf.contrib.rnn.GRUCell(num_units=self.dim_proj)
+            else:  # use lstm cell instead
+                rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                    tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
+                    input_keep_prob=self.input_keep_prob,
+                    output_keep_prob=self.output_keep_prob
+                )
 
             # create sequential rnn from single cells
             rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
@@ -107,9 +121,9 @@ class RNN(object):
             # Create a recurrent neural network
 
             if config['bidirectional']:
-                rnn_cell_seq_bw = tf.contrib.rnn.MultiRNNCell(
-                    [rnn_cell] * self.layers
-                )
+                # rnn_cell_seq_bw = tf.contrib.rnn.MultiRNNCell(
+                #     [rnn_cell] * self.layers
+                # )
                 output, state_fw, state_bw = tf.contrib.rnn.static_bidirectional_rnn(
                     inputs=rnn_input,
                     cell_fw=rnn_cell_seq,
@@ -202,6 +216,16 @@ class RNN(object):
     def summarize(self, config, sess):
         # out_dir = config['out_dir']
         # Summaries for loss and accuracy
+
+        # if config['bidirectional']:
+        #     weight = config
+        #     loss_summary = tf.summary.scalar("loss", self.mean_loss)
+        #     acc_summary = tf.summary.scalar("accuracy", self.accuracy)
+        # else:
+        self.mean_loss = self.metrics_weight * self.mean_loss + \
+            self.fixed_loss_value
+        self.accuracy = self.metrics_weight * self.accuracy + \
+            self.fixed_acc_value
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
         # Train Summaries

@@ -105,6 +105,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             network.output_keep_prob: config["keep_prob_out"],
             network.seq_lengths: len(x_batch) * [config['n_words']],
             network.batch_size: len(x_batch),
+            network.metrics_weight: 1,
+            network.fixed_acc_value: 0,
+            network.fixed_loss_value: 0
             # network.train_phase: True
         }
 
@@ -135,27 +138,80 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # train_summary_writer.add_summary(summaries, step)
         # grad_summaries_writer.add_summary(grad_summary, step)
         if current_step % config['evaluate_every'] == 0:
-            pass
             dev_step(x_dev, y_dev)
 
     def dev_step(x_batch, y_batch):
-        feed_dict = {
-            network.x: x_batch,
-            network.y: y_batch,
-            network.dropout_prob: 1.0,
-            # network.str_summary_type: "",
-            network.input_keep_prob: config["keep_prob_inp"],
-            network.output_keep_prob: config["keep_prob_out"],
-            network.seq_lengths: len(x_batch) * [config['n_words']],
-            network.batch_size: len(x_batch),
-            # network.train_phase: False
-        }
-        # step, summaries, loss, accuracy = sess.run(
-        #     [global_step, dev_summary_op, network.loss, network.accuracy],
-        #     feed_dict)
+        if config['split_dev']:  # will need to split dev set to smaller chunks
+            mini_size = config['dev_minibatch']
+            acc_sum = 0
+            loss_sum = 0
+            for i in range(0, len(x_batch), mini_size):
+                if (i + mini_size < len(x_batch)):
+                    mini_x_batch = x_batch[i:i + mini_size]
+                    mini_y_batch = y_batch[i:i + mini_size]
+                else:
+                    mini_x_batch = x_batch[i:]
+                    mini_y_batch = y_batch[i:]
+                feed_dict = {
+                    network.x: mini_x_batch,
+                    network.y: mini_y_batch,
+                    network.dropout_prob: 1.0,
+                    network.input_keep_prob: config["keep_prob_inp"],
+                    network.output_keep_prob: config["keep_prob_out"],
+                    network.seq_lengths: len(mini_x_batch) * [config['n_words']],
+                    network.batch_size: len(mini_x_batch),
+                    network.metrics_weight: 1,
+                    network.fixed_acc_value: 0,
+                    network.fixed_loss_value: 0
+                }
+                output_ = [network.global_step, network.accuracy,
+                           network.mean_loss]
+                current_step, accuracy, loss = sess.run(output_, feed_dict)
+                acc_sum += len(mini_x_batch) * accuracy
+                loss_sum += len(mini_x_batch) * loss
+
+            loss = loss_sum / len(x_batch)
+            accuracy = acc_sum / len(x_batch)
+            print ("           loss {} accuracy{}".format(loss, accuracy))
+            feed_dict = {
+                    network.x: mini_x_batch,
+                    network.y: mini_y_batch,
+                    network.dropout_prob: 1.0,
+                    network.input_keep_prob: config["keep_prob_inp"],
+                    network.output_keep_prob: config["keep_prob_out"],
+                    network.seq_lengths: len(mini_x_batch) * [config['n_words']],
+                    network.batch_size: len(mini_x_batch),
+                    network.metrics_weight: 0.0,
+                    network.fixed_acc_value: accuracy,
+                    network.fixed_loss_value: loss
+            }
+
+
+            # loss_summary = tf.summary.scalar("loss", loss)
+            # acc_summary = tf.summary.scalar("accuracy", accuracy)
+            # # Train Summaries
+            # net_sum = tf.summary.merge([loss_summary, acc_summary])
+            # out = sess.run([net_sum])
+            # dev_summary_writer.add_summary(out[0], current_step)
+        else:  # use whole batch
+            feed_dict = {
+                network.x: x_batch,
+                network.y: y_batch,
+                network.dropout_prob: 1.0,
+                # network.str_summary_type: "",
+                network.input_keep_prob: config["keep_prob_inp"],
+                network.output_keep_prob: config["keep_prob_out"],
+                network.seq_lengths: len(x_batch) * [config['n_words']],
+                network.batch_size: len(x_batch),
+                network.metrics_weight: 1,
+                network.fixed_acc_value: 0,
+                network.fixed_loss_value: 0
+                # network.train_phase: False
+            }
         output_ = [network.global_step, network.accuracy,
                    network.mean_loss, network.summary_op]
-        current_step, accuracy, loss, net_sum = sess.run(output_, feed_dict)
+        current_step, accuracy, loss, net_sum = sess.run(
+            output_, feed_dict)
         # save summary
         dev_summary_writer.add_summary(net_sum, current_step)
 
