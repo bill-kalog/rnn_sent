@@ -94,7 +94,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     sess.run(tf.global_variables_initializer())
 
     # train fucntion
-    def train_step(x_batch, y_batch):
+    def train_step(x_batch, y_batch, iter_):
         # print("batch lenght {}". format(len(x_batch)))
         feed_dict = {
             network.x: x_batch,
@@ -111,24 +111,30 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # network.train_phase: True
         }
 
+        if (iter_ % 100 == 99):  # record full summaries:
+            run_options = tf.RunOptions(
+                trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            output_ = [network.update, network.global_step,
+                       network.accuracy, network.mean_loss,
+                       network.summary_op]
+            _, current_step, accuracy, loss, net_sum = sess.run(
+                output_, feed_dict, options=run_options,
+                run_metadata=run_metadata)
 
-        # _, step, summaries, loss, accuracy, word_embd, grad_summary = sess.run(
-        #     [train_op, global_step, train_summary_op,
-        #      network.loss, network.accuracy, network.word_embeddings,
-        #      grad_summaries_merged],
-        #     feed_dict)
+            train_summary_writer.add_run_metadata(
+                run_metadata, 'step%d' % current_step)
+        else:
+            output_ = [network.update, network.global_step,
+                       network.accuracy, network.mean_loss,
+                       network.summary_op]
+            _, current_step, accuracy, loss, net_sum = sess.run(output_, feed_dict)
 
-        output_ = [network.update, network.global_step,
-                   network.accuracy, network.mean_loss,
-                   network.summary_op]
-        _, current_step, accuracy, loss, net_sum = sess.run(output_, feed_dict)
-        # if config['clipping_weights']:
-        #     sess.run([weight_clipping])
-        # cur_norm = sess.run([fc_layer_norm])
         if config['save_step'] == current_step:
             # save word embeddings
             emb_m = sess.run([network.w_embeddings], feed_dict)
             save_embedding(emb_m)
+        # write train summary
         train_summary_writer.add_summary(net_sum, current_step)
 
         time_str = datetime.datetime.now().isoformat()
@@ -185,14 +191,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.fixed_acc_value: accuracy,
                     network.fixed_loss_value: loss
             }
-
-
-            # loss_summary = tf.summary.scalar("loss", loss)
-            # acc_summary = tf.summary.scalar("accuracy", accuracy)
-            # # Train Summaries
-            # net_sum = tf.summary.merge([loss_summary, acc_summary])
-            # out = sess.run([net_sum])
-            # dev_summary_writer.add_summary(out[0], current_step)
         else:  # use whole batch
             feed_dict = {
                 network.x: x_batch,
@@ -265,9 +263,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     print("Saved configuration file at: {}".format(conf_path))
 
     print ("train loop starting for every batch")
-    for batch in batches:
+    for iter_, batch in enumerate(batches):
         x_batch, y_batch = zip(*batch)
-        train_step(x_batch, y_batch)
+        train_step(x_batch, y_batch, iter_)
         # current_step = tf.train.global_step(sess, global_step)
         # if current_step % config['evaluate_every'] == 0:
         #     print("\nEvaluation:")
