@@ -28,8 +28,8 @@ data = dataset.cv_split(index=2)
 # dataset_1 = Dataset("MR", preprocess=True)
 # sp_1 = dataset_1.cv_split(index=5)
 
-# # data = [dataset.tokenized[:25000], dataset.labels_verbose[:25000],
-# #         dataset.tokenized[25000:], dataset.labels_verbose[25000:]]
+# data = [dataset.tokenized[:25000], dataset.labels_verbose[:25000],
+#         dataset.tokenized[25000:], dataset.labels_verbose[25000:]]
 
 # data = [data[0] + sp_1[0], data[1] + sp_1[1], sp_1[2], sp_1[3]]
 

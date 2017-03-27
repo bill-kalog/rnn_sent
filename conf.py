@@ -5,15 +5,16 @@ config = {
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
 
-    'bidirectional': True,  # bidirectional rnn or not
-    'GRU': False,  # TODO fix bug on GRU not working right now
-    'pooling': True,  # choose between pooling or fc layer
+    'bidirectional': False,  # bidirectional rnn or not
+    'GRU': True,  # chose between GRU or LSTM, seems to work
+    'pooling': True,  # choose between avg pooling or fc layer in the end
+    'attention': False,  # choose between attention or not
     'split_dev': True,  # calculate dev set metrics in minibatches
-    'dev_minibatch': 200,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
+    'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # word embeding dimension and LSTM number of hidden units.
     'layers': 1,
     'batch_size': 120,  # The batch size during training.
-    'n_epochs': 100,
+    'n_epochs': 200,
     'n_words': None,  # Leave as None, dictionary size
     'learning_rate': 1e-4,
     'dropout_rate': 0.7,
@@ -25,6 +26,7 @@ config = {
     'evaluate_every': 5,  # evaluate on dev set
 
     'save_step': 500,
+    'save_step_dev_info': 500,
 
     # word embeddings args
     'std_dev': 0.01,  # variance

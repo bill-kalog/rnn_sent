@@ -7,7 +7,7 @@ import os
 
 class RNN(object):
     """ RNN model """
-    def __init__(self, config, sess, word_vectors=[]):
+    def __init__(self, config, word_vectors=[]):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
         # self.batch_size = config['batch_size']
@@ -44,7 +44,7 @@ class RNN(object):
 
 
         self.make_graph(config)
-        self.summarize(config, sess)
+        self.summarize(config)
 
     def make_graph(self, config):
         """ Build RNN graph """
@@ -95,32 +95,64 @@ class RNN(object):
         # split sentences in word steps of size batch_size
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
+        # rnn_input = embedded_tokens
+        # self.test = rnn_input[0]
         # rnn_input_back = [embedded_tokens[:, i, :] for i in range(
         #     self.sentence_len - 1, -1, -1)]
+        with tf.name_scope("calc_sequences_length"):
+            '''
+            calculate actual lenght of each sentence -- known bug
+            if a sentence ends with unknown tokens they are not considered
+            in size, if they are at start or in between they are
+            considered though
+            '''
+            # doesn't work due to zero padding and <UNK> being both zero
+            # self.seq_lengths = tf.reduce_sum(tf.sign(self.x), 1)
+            mask = tf.sign(self.x)
+            range_ = tf.range(
+                start=1, limit=self.sentence_len + 1, dtype=tf.int32)
+            mask = tf.multiply(mask, range_, name="mask")
+            self.seq_lengths = tf.reduce_max(mask, axis=1)
 
         with tf.name_scope("rnn_cell"):
             if config['GRU']:  # use GRU cell
-                # rnn_cell = tf.contrib.rnn.DropoutWrapper(
-                #     tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
-                #     input_keep_prob=self.input_keep_prob,
-                #     output_keep_prob=self.output_keep_prob
-                # )
-                rnn_cell = tf.contrib.rnn.GRUCell(num_units=self.dim_proj)
+                self.rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                    tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+                    input_keep_prob=self.input_keep_prob,
+                    output_keep_prob=self.output_keep_prob
+                )
+                if config['attention']:
+                    self.rnn_cell = tf.contrib.rnn.AttentionCellWrapper(
+                        cell=self.rnn_cell, attn_length=40, state_is_tuple=True
+                    )
+
+                # rnn_cell = tf.contrib.rnn.GRUCell(num_units=self.dim_proj)
             else:  # use lstm cell instead
-                rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                self.rnn_cell = tf.contrib.rnn.DropoutWrapper(
                     tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
                     input_keep_prob=self.input_keep_prob,
                     output_keep_prob=self.output_keep_prob
                 )
+                if config['attention']:
+                    self.rnn_cell = tf.contrib.rnn.AttentionCellWrapper(
+                        cell=self.rnn_cell, attn_length=40, state_is_tuple=True
+                    )
+
 
             # create sequential rnn from single cells
             rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
-                [rnn_cell] * self.layers)
+                [self.rnn_cell] * self.layers, state_is_tuple=True)
+
             initial_state = rnn_cell_seq.zero_state(
                 self.batch_size, tf.float32)
             # Create a recurrent neural network
 
             if config['bidirectional']:
+                # rnn_cell_bw = tf.contrib.rnn.DropoutWrapper(
+                #     tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
+                #     input_keep_prob=self.input_keep_prob,
+                #     output_keep_prob=self.output_keep_prob
+                # )
                 # rnn_cell_seq_bw = tf.contrib.rnn.MultiRNNCell(
                 #     [rnn_cell] * self.layers
                 # )
@@ -132,23 +164,48 @@ class RNN(object):
                     initial_state_bw=initial_state,
                     sequence_length=self.seq_lengths
                 )
-                state_ = state_fw[-1][0] + state_bw[-1][0]
+                # self.state_ = state_fw[-1][0] + state_bw[-1][0]
+                # self.output = output
+                # self.state_ = state_bw[-1][0]
+                self.state_ = output[-1]
+                # self.state_ = tf.concat([state_fw[-1][0], state_bw[-1][0]], 1)
+                # self.state_1 = state_fw[-1][0]
+                # self.state_2 = state_bw[-1][0]
+                # self.state_ = tf.concat([state_bw[-1][1], state_bw[-1][0]], 1)
+                self.times = 2
+
             else:
+                # self.lengths = tf.reduce_sum(
+                #     tf.reduce_max(tf.sign(self.x), 2), 1)
+                # self.lengths = tf.reduce_sum(tf.sign(self.x), 1)
                 output, state = tf.contrib.rnn.static_rnn(
                     rnn_cell_seq, rnn_input,
                     initial_state=initial_state,
                     sequence_length=self.seq_lengths
                 )
-                state_ = state[-1][0]
+                # output, state = tf.nn.dynamic_rnn(
+                #     cell=rnn_cell_seq,
+                #     inputs=rnn_input,
+                #     initial_state=initial_state,
+                #     # sequence_length=self.seq_lengths
+                # )
+                self.state_ = output[-1]
+                self.output = state[-1]
+                # self.state_ = output[-1]
+                self.times = 1
+                # self.state = state[-1][0] + state[-1][1]
+                # self.state_ = tf.concat([state[-1][0], state[-1][1]], 1)
+
+                # self.state_all = state
 
         if config["pooling"]:
             with tf.name_scope("avg_pooling"):
                 self.h_pool = tf.reshape(
-                    state_, [self.batch_size, -1, 1, 1])
+                    self.state_, [self.batch_size, -1, 1, 1])
                 self.pool = tf.nn.avg_pool(
                     self.h_pool, strides=[1, 1, 1, 1],
                     # ksize=[1, self.sentence_len + 1, 1, 1],
-                    ksize=[1, self.dim_proj, 1, 1],
+                    ksize=[1, self.times * self.dim_proj, 1, 1],
                     padding='VALID', name="pool"
                 )
             with tf.name_scope("softmax"):
@@ -164,12 +221,14 @@ class RNN(object):
                 self.scores = tf.nn.xw_plus_b(self.flat_pool, W, b)
 
         else:
-            with tf.name_scope("drop-out"):
+            with tf.name_scope("drop_out"):
                 # use the cell memory state for information on sentence embedding
-                self.l_drop = tf.nn.dropout(state_, self.dropout_prob)
+                self.l_drop = tf.nn.dropout(
+                    self.state_, self.dropout_prob, name="drop_out")
+                # self.l_drop = self.state_
 
             with tf.name_scope("fc_layer"):
-                shape = [self.dim_proj, self.num_classes]
+                shape = [self.times * self.dim_proj, self.num_classes]
                 W = tf.Variable(
                     tf.truncated_normal(shape, stddev=0.01), name="W"
                 )
@@ -179,9 +238,13 @@ class RNN(object):
                 )
 
                 self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
+                # self.scores = tf.nn.sigmoid(self.scores, name='sigmoid')
 
-        self.y = tf.nn.softmax(self.scores)
-        self.predictions = tf.argmax(self.scores, 1)
+        # self.y = tf.nn.softmax(self.scores)
+        with tf.name_scope("predict"):
+            self.predictions = tf.argmax(self.scores, 1)
+            self.true_predictions = tf.argmax(self.y, 1)
+            self.probs = tf.nn.softmax(self.scores)
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
@@ -213,7 +276,7 @@ class RNN(object):
         # self.merged = tf.merge_summary([self.mean_loss, acc_summ])
     # self.saver = tf.train.Saver(tf.globa())
 
-    def summarize(self, config, sess):
+    def summarize(self, config):
         # out_dir = config['out_dir']
         # Summaries for loss and accuracy
 
