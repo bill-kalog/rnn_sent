@@ -135,6 +135,24 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 run_metadata, 'step%d' % current_step)
         else:
             # test, max_indeces = sess.run([network.mask, network.max_indeces], feed_dict)
+            # output = sess.run([network.output], feed_dict)
+            # # print (output)
+            # print (len(output[0]))
+            # print (output[0][0].shape)
+            # # for index in range(3):
+            # #     print (output[0][index][10])
+
+            # pool_list, stacked_output = sess.run(
+            #     [network.poolings, network.stacked_outputs], feed_dict)
+            # print (len(pool_list[0]))
+            # # for i in range(len(pool_list[0])):
+            # #     print ("{} : {}".format(i, pool_list[0][i].shape))
+
+            # print (len(stacked_output))
+            # print (stacked_output.shape)
+            # for index in range(3):
+            #     print(stacked_output[0][10][index])
+
             # # print ("length{} shape{}" .format(len(test), test[0].shape))
             # print (test)
             # print (max_indeces)
@@ -199,7 +217,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         if current_step % config['evaluate_every'] == 0:
             dev_step(x_dev, y_dev)
         if current_step == config['save_step_dev_info']:
-            save_dev_summary(x_dev, y_dev, dx_dev)
+            save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
+            save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -306,12 +325,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         saver.save(sess, os.path.join(
             summary_path, 'embedding_.ckpt'))
 
-    def save_dev_summary(x_batch, y_batch, x_strings_batch):
+    def save_dev_summary(x_batch, y_batch, x_strings_batch, name_):
         '''
         save info for a batch ni order to plot in
         bokeh later
         '''
-        path_ = os.path.join(out_dir, "metrics.pkl")
+        path_ = os.path.join(out_dir, name_)
         y_net = []
         prob_net = []
         layer = []

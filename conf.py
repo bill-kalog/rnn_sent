@@ -7,7 +7,7 @@ config = {
 
     'bidirectional': False,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
-    'pooling': True,  # choose between avg pooling or fc layer in the end
+    'pooling': False,  # choose between avg pooling or fc layer in the end
     'attention': False,  # choose between attention or not
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
@@ -25,8 +25,8 @@ config = {
 
     'evaluate_every': 5,  # evaluate on dev set
 
-    'save_step': 500,
-    'save_step_dev_info': 500,
+    'save_step': 800,
+    'save_step_dev_info': 800,
 
     # word embeddings args
     'std_dev': 0.01,  # variance
@@ -38,9 +38,10 @@ config = {
     'word_vector_type': ['glove'],
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
-    # 'train_embeddings': [True],
-    # 'word_vector_type': [],
-    # 'pretrained_vectors': [],
+    # random vectors only
+    'train_embeddings': [True],
+    'word_vector_type': [],
+    'pretrained_vectors': [],
 
 
 

@@ -95,6 +95,11 @@ class RNN(object):
         # split sentences in word steps of size batch_size
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
+
+        # input_shape = [self.batch_size, self.sentence_len, self.dim_proj]
+        # rnn_input = tf.Variable(tf.float32, input_shape)
+        # assign_op = tf.assign(embedded_tokens, rnn_input, )
+
         # rnn_input = embedded_tokens
         # self.test = rnn_input[0]
         # rnn_input_back = [embedded_tokens[:, i, :] for i in range(
@@ -190,7 +195,34 @@ class RNN(object):
                 #     # sequence_length=self.seq_lengths
                 # )
                 self.state_ = output[-1]
-                self.output = state[-1]
+                self.output = output
+
+                
+                # out_shape = [self.batch_size, self.sentence_len, -1]
+                self.poolings = []
+                for i in range(self.sentence_len):
+                    pool_shape = [self.batch_size, 1, -1, 1]
+                    pool_input = tf.reshape(
+                        self.output[i], pool_shape
+                    )
+                    pool = tf.nn.avg_pool(
+                        pool_input, strides=[1, 1, 1, 1],
+                        ksize=[1, 1, self.dim_proj, 1],
+                        padding='VALID', name="avg_pool_ouput"
+                    )
+                    pool = tf.reshape(
+                        pool, [-1])
+                    self.poolings.append(pool)
+                self.stacked_outputs = tf.stack(self.poolings)
+                self.state_ = tf.matrix_transpose(
+                    self.stacked_outputs, name="stacked_avg_outputs")
+                # self.state_ = output[-1]
+
+
+                # self.stacked_outputs = tf.reshape(
+                #     self.stacked_outputs, out_shape)
+
+                # self.output_pool = 
                 # self.state_ = output[-1]
                 self.times = 1
                 # self.state = state[-1][0] + state[-1][1]
@@ -228,9 +260,11 @@ class RNN(object):
                 # self.l_drop = self.state_
 
             with tf.name_scope("fc_layer"):
+                # shape = [tf.shape(self.state_)[1], self.num_classes]
                 shape = [self.times * self.dim_proj, self.num_classes]
+                shape = [self.sentence_len, self.num_classes]
                 W = tf.Variable(
-                    tf.truncated_normal(shape, stddev=0.01), name="W"
+                    tf.truncated_normal(shape, stddev=0.01), name="W",
                 )
                 b = tf.Variable(tf.constant(
                     0.1, shape=[self.num_classes]),
