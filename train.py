@@ -5,6 +5,7 @@ import tensorflow as tf
 # from conf import config
 import numpy as np
 from model import RNN
+from model import RNN_Attention
 from tensorflow.contrib.tensorboard.plugins import projector
 from tensorflow.contrib import learn
 import process_utils
@@ -86,8 +87,11 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     config['out_dir'] = out_dir
     print("Writing to {}\n".format(out_dir))
 
-    # network = RNN(config, sess, init_embd)
-    network = RNN(config, word_embd_tensor)
+    if config["use_attention"]:
+        network = RNN_Attention(config, word_embd_tensor)
+    else:
+        network = RNN(config, word_embd_tensor)
+
 
     dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
     dev_summary_writer = tf.summary.FileWriter(
@@ -134,6 +138,32 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             train_summary_writer.add_run_metadata(
                 run_metadata, 'step%d' % current_step)
         else:
+            # a = []
+            # shape_ = [4, 3]
+            # seq_length = 5
+            # batches = shape_[0]
+            # for i in range(seq_length):
+            #     arr_ = np.random.randn(shape_[0], shape_[1]) * i
+            #     tens_ = tf.get_variable(
+            #         name="a_name_" + str(i),
+            #         shape=shape_,
+            #         initializer=tf.constant_initializer(arr_)
+            #     )
+            #     a.append(tens_)
+            # b = tf.stack(a)
+            # shape_2 = [4, 5, 3]
+            # res_b = tf.reshape(
+            #     b, shape_2)
+
+            # reshaped_tensor_2 = [b[:, i, :] for i in range(batches)]
+
+            # sess.run(tf.global_variables_initializer())
+
+            # output, output_b = sess.run([b, reshaped_tensor_2])
+            # print (output)
+            # print ("ooooooooooooooooo")
+            # print (output_b)
+
             # test, max_indeces = sess.run([network.mask, network.max_indeces], feed_dict)
             # output = sess.run([network.output], feed_dict)
             # # print (output)
@@ -148,19 +178,14 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # # for i in range(len(pool_list[0])):
             # #     print ("{} : {}".format(i, pool_list[0][i].shape))
 
-            # print (len(stacked_output))
-            # print (stacked_output.shape)
-            # for index in range(3):
-            #     print(stacked_output[0][10][index])
 
-            # # print ("length{} shape{}" .format(len(test), test[0].shape))
-            # print (test)
-            # print (max_indeces)
-            # print (max_indeces.shape)
-            # print (x_batch[0])
-            # print (x_batch[1])
-            # print (x_batch[2])
-            # sys.exit(0)
+            out = [network.sentence_repr, network.attention_scores]
+            repr_, scores_ = sess.run(out, feed_dict)
+            print (scores_)
+            print (scores_.shape)
+            print (repr_.shape)
+
+            sys.exit(0)
 
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
