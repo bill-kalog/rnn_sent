@@ -178,14 +178,22 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # # for i in range(len(pool_list[0])):
             # #     print ("{} : {}".format(i, pool_list[0][i].shape))
 
+            # out_0 = [network.attention_input]
+            # repr_ = sess.run(out_0, feed_dict)
+            # print (len(repr_))
+            # print (repr_[0].shape)
 
-            out = [network.sentence_repr, network.attention_scores]
-            repr_, scores_ = sess.run(out, feed_dict)
-            print (scores_)
-            print (scores_.shape)
-            print (repr_.shape)
 
-            sys.exit(0)
+
+
+            # out = [network.sentence_repr, network.attention_scores]
+            # repr_, scores_ = sess.run(out, feed_dict)
+            # print (scores_)
+            # print ("sum ", np.sum(scores_[2]))
+            # print (scores_.shape)
+            # print (repr_.shape)
+
+            # sys.exit(0)
 
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
@@ -244,6 +252,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         if current_step == config['save_step_dev_info']:
             save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
             save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
+            get_attention_weights(x_dev, "attention.json")
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -262,8 +271,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.x: mini_x_batch,
                     network.y: mini_y_batch,
                     network.dropout_prob: 1.0,
-                    network.input_keep_prob: config["keep_prob_inp"],
-                    network.output_keep_prob: config["keep_prob_out"],
+                    network.input_keep_prob: 1.0,
+                    network.output_keep_prob: 1.0,
                     network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 1,
@@ -283,8 +292,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.x: mini_x_batch,
                     network.y: mini_y_batch,
                     network.dropout_prob: 1.0,
-                    network.input_keep_prob: config["keep_prob_inp"],
-                    network.output_keep_prob: config["keep_prob_out"],
+                    network.input_keep_prob: 1.0,
+                    network.output_keep_prob: 1.0,
                     network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 0.0,
@@ -297,8 +306,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 network.y: y_batch,
                 network.dropout_prob: 1.0,
                 # network.str_summary_type: "",
-                network.input_keep_prob: config["keep_prob_inp"],
-                network.output_keep_prob: config["keep_prob_out"],
+                network.input_keep_prob: 1.0,
+                network.output_keep_prob: 1.0,
                 network.seq_lengths: len(x_batch) * [config['sentence_len']],
                 network.batch_size: len(x_batch),
                 network.metrics_weight: 1,
@@ -319,6 +328,72 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             time_str, current_step, loss, accuracy, len(x_batch)))
         # if writer:
         #     writer.add_summary(summaries, step)
+
+    def get_attention_weights(x_batch, filename):
+        '''
+        save attention weights for a batch of sentences
+        '''
+        path_ = os.path.join(out_dir, filename)
+        y_net = []
+        prob_net = []
+        layer = []
+        true_labels = []
+        if config['split_dev']:
+            mini_size = config['dev_minibatch']
+            for i in range(0, len(x_batch), mini_size):
+                if (i + mini_size < len(x_batch)):
+                    mini_x_batch = x_batch[i:i + mini_size]
+                    mini_y_batch = y_batch[i:i + mini_size]
+                else:
+                    mini_x_batch = x_batch[i:]
+                    mini_y_batch = y_batch[i:]
+                feed_dict = {
+                    network.x: mini_x_batch,
+                    network.y: mini_y_batch,
+                    network.dropout_prob: 1.0,
+                    network.input_keep_prob: 1.0,
+                    network.output_keep_prob: 1.0,
+                    network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
+                    network.batch_size: len(mini_x_batch),
+                    network.metrics_weight: 1,
+                    network.fixed_acc_value: 0,
+                    network.fixed_loss_value: 0
+                }
+
+                output_ = [network.predictions, network.true_predictions,
+                           network.probs, network.state_]
+                predictions, true_pred, probs, fc_layer = sess.run(
+                    output_, feed_dict)
+                # print (predictions)
+                # print (probs)
+                # print (fc_layer)
+                # print (fc_layer.shape)
+                # print (true_pred)
+                prob_net += probs.tolist()
+                layer += fc_layer.tolist()
+                y_net += predictions.tolist()
+                true_labels += true_pred.tolist()
+
+
+        else:
+            feed_dict = {
+                network.x: x_batch,
+                network.y: y_batch,
+                network.dropout_prob: 1.0,
+                network.input_keep_prob: 1.0,
+                network.output_keep_prob: 1.0,
+                network.seq_lengths: len(x_batch) * [config['sentence_len']],
+                network.batch_size: len(x_batch),
+                network.metrics_weight: 1,
+                network.fixed_acc_value: 0,
+                network.fixed_loss_value: 0
+            }
+            output_ = [network.predictions, network.y]
+            predictions, probabilities = sess.run(
+                output_, feed_dict)
+
+
+
 
     def save_embedding(embd_matrix):
         summary_path = os.path.join(out_dir, 'summaries', 'embeddings')
@@ -373,8 +448,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.x: mini_x_batch,
                     network.y: mini_y_batch,
                     network.dropout_prob: 1.0,
-                    network.input_keep_prob: config["keep_prob_inp"],
-                    network.output_keep_prob: config["keep_prob_out"],
+                    network.input_keep_prob: 1.0,
+                    network.output_keep_prob: 1.0,
                     network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 1,
@@ -402,8 +477,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 network.x: x_batch,
                 network.y: y_batch,
                 network.dropout_prob: 1.0,
-                network.input_keep_prob: config["keep_prob_inp"],
-                network.output_keep_prob: config["keep_prob_out"],
+                network.input_keep_prob: 1.0,
+                network.output_keep_prob: 1.0,
                 network.seq_lengths: len(x_batch) * [config['sentence_len']],
                 network.batch_size: len(x_batch),
                 network.metrics_weight: 1,

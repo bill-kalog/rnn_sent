@@ -23,6 +23,8 @@ config = {
     'sentence_len': None,  # max sentence length
     'keep_prob_inp': .5,
     'keep_prob_out': .5,
+    'keep_prob_inp': 1.,
+    'keep_prob_out': 1.,
 
     'evaluate_every': 5,  # evaluate on dev set
 

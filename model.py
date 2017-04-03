@@ -464,17 +464,29 @@ class RNN_Attention(object):
             self.output = np.asarray(self.output)
             self.output = tf.stack(list(self.output))
             print (" out____ ", self.output.get_shape())
-            self.attention_input = [
-                self.output[:, i, :] for i in range(self.batch_size)]
+
+            # don;t work because bathc size is variable
+            # try tf.slice(input_, begin, size, name=None)
+            # self.attention_input = [
+            #     self.output[:, i, :] for i in range(self.batch_size)]
+
+            # self.attention_input = [tf.slice(
+            #     self.output, [0, i, 0], [-1, i + 1, -1])
+            #     for i in range(self.batch_size)]
+
+            self.attention_input = tf.transpose(
+                self.output, perm=[1, 0, 2])
+
             shape = [self.dim_proj, 1]
             W = tf.Variable(
                 tf.truncated_normal(shape, stddev=0.01),
                 name="W_attent_fc"
             )
             b = tf.Variable(
-                tf.constant(0.1), shape=[1],
+                tf.constant(0.1, shape=[self.sentence_len]),
                 name="b"
             )
+            print (" attention___ ", self.attention_input.get_shape())
             # reshape 3d tensor to be mjltiplied by the weights
             temp_shape_in = [
                 self.batch_size * self.sentence_len, self.dim_proj]
@@ -488,13 +500,29 @@ class RNN_Attention(object):
                 tf.nn.bias_add(self.unormalized_att_scores, b), name="relu")
         with tf.name_scope("attention_softmax"):
             self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
+            print ("attentio scores +++ ", self.attention_scores.shape)
+            print ("att input +++", self.attention_input.shape)
         with tf.name_scope("sentence_represenation"):
-            sentences = []
-            for i in range(self.batch_size):
-                temp = tf.multiply(
-                    self.attention_input[i], self.attention_scores[i])
-                sentences.append(temp)
-            self.sentence_repr = tf.stack(sentences)
+            # sentences = []
+
+            # for i in range(self.batch_size):
+            #     temp = tf.multiply(
+            #         self.attention_input[i], self.attention_scores[i])
+            #     sentences.append(temp)
+            # self.sentence_repr = tf.stack(sentences)
+
+            self.attention_scores_exp = tf.expand_dims(
+                self.attention_scores, 2)
+            print ("attention_scores_exp ++ ", self.attention_scores_exp.shape)
+
+
+            self.sentence_repr = tf.multiply(
+                self.attention_input, self.attention_scores_exp)
+            print ("sentence repr ++ ", self.sentence_repr.shape)
+            self.sentence_repr = tf.reduce_sum(self.sentence_repr, 1)
+            print ("sentence repr reduced ++ ", self.sentence_repr.shape)
+            # TODO wtite it better and more modular
+            self.state_ = self.sentence_repr
 
         with tf.name_scope("fc_layer"):
             shape = [self.dim_proj, self.num_classes]
