@@ -252,7 +252,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         if current_step == config['save_step_dev_info']:
             save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
             save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
-            get_attention_weights(x_dev, "attention.json")
+            get_attention_weights(x_dev, y_dev, dx_dev, "attention.json")
+            get_attention_weights(
+                x_train, y_train, dx_train, "attention_train.json")
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -329,15 +331,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # if writer:
         #     writer.add_summary(summaries, step)
 
-    def get_attention_weights(x_batch, filename):
+    def get_attention_weights(x_batch, y_batch, x_strings_batch, filename):
         '''
         save attention weights for a batch of sentences
         '''
         path_ = os.path.join(out_dir, filename)
-        y_net = []
-        prob_net = []
-        layer = []
-        true_labels = []
+        scores_list = []
         if config['split_dev']:
             mini_size = config['dev_minibatch']
             for i in range(0, len(x_batch), mini_size):
@@ -360,40 +359,33 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.fixed_loss_value: 0
                 }
 
-                output_ = [network.predictions, network.true_predictions,
-                           network.probs, network.state_]
-                predictions, true_pred, probs, fc_layer = sess.run(
+                # output_ = [network.predictions, network.true_predictions,
+                #            network.probs, network.state_]
+                output_ = [network.attention_scores]
+                scores = sess.run(
                     output_, feed_dict)
+                # print (scores[0])
+                # print (len(scores))
+                # print (scores[2].shape)
                 # print (predictions)
                 # print (probs)
                 # print (fc_layer)
                 # print (fc_layer.shape)
                 # print (true_pred)
-                prob_net += probs.tolist()
-                layer += fc_layer.tolist()
-                y_net += predictions.tolist()
-                true_labels += true_pred.tolist()
-
-
+                scores_list += scores[0].tolist()
         else:
-            feed_dict = {
-                network.x: x_batch,
-                network.y: y_batch,
-                network.dropout_prob: 1.0,
-                network.input_keep_prob: 1.0,
-                network.output_keep_prob: 1.0,
-                network.seq_lengths: len(x_batch) * [config['sentence_len']],
-                network.batch_size: len(x_batch),
-                network.metrics_weight: 1,
-                network.fixed_acc_value: 0,
-                network.fixed_loss_value: 0
-            }
-            output_ = [network.predictions, network.y]
-            predictions, probabilities = sess.run(
-                output_, feed_dict)
-
-
-
+            print (
+                "doesn't support having input as a single batch, set:"
+                "config['split_dev'] to True ")
+            sys.exit(1)
+        # Build a dictionary to save at json format
+        # adds some overhead
+        dic_ = {}
+        for i in range(len(x_strings_batch)):
+            dic_['sent_' + str(i)] = {
+                "sentence": x_strings_batch[i], 'attention': scores_list[i]}
+        json.dump(dic_, open(path_, 'w'), indent="\t")
+        print("Saved attention weights file at: {}".format(path_))
 
     def save_embedding(embd_matrix):
         summary_path = os.path.join(out_dir, 'summaries', 'embeddings')

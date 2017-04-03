@@ -438,22 +438,7 @@ class RNN_Attention(object):
             )
             self.output = output
 
-
-        # with tf.name_scope("attention_fc_layer"):
-        #     pass
-        # with tf.name_scope("attention_softmax"):
-        #     pass
-        # with tf.name_scope("sentence_represenation"):
-        #     pass
-        # with tf.name_scope("attention_fc_layer"):
-        #     pass
         self.attention()
-
-        with tf.name_scope("drop_out"):
-            pass
-        with tf.name_scope("fc_layer"):
-            pass
-
 
     def attention(self):
         # TODO attention as a module
