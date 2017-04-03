@@ -366,20 +366,26 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         dic_ = {}
 
         for i in range(len(x_strings_batch)):
-            # save sentence and attnetion seperately
+            # uncomment to save sentence and attention seperately
             # dic_['sent_' + str(i)] = {
             #     "sentence": x_strings_batch[i], 'attention': scores_list[i]}
 
+            # OR
             # save info in tuple pairs (attention_pro, word) and sum
             temp = []
-            # TODO need to split on tokens
-            print (len(x_strings_batch), len(x_strings_batch[i]), len(scores_list[i]))
-            for index_ in range(len(x_strings_batch[i])):
+            sum_ = 0
+            print (len(x_strings_batch), len(x_strings_batch[i].split()), len(scores_list[i]))
+            for index_, word in enumerate(x_strings_batch[i].split()):
+                if index_ >= len(scores_list[i]):
+                    # sentence bigger than max length
+                    break
                 temp.append(
-                    (x_strings_batch[i][index_], scores_list[i][index_]))
+                    (word, scores_list[i][index_]))
+                sum_ += scores_list[i][index_]
             dic_['sent_id_' + str(i)] = {
                 "mappings": temp,
-                "prob_sum": sum(scores_list[i][:x_strings_batch[i]])
+                "prob_sum": sum_,
+                "sentence": x_strings_batch[i],
             }
 
         json.dump(dic_, open(path_, 'w'), indent="\t")

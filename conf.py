@@ -29,7 +29,7 @@ config = {
     'evaluate_every': 5,  # evaluate on dev set
 
     'save_step': 800,
-    'save_step_dev_info': 1,#800,
+    'save_step_dev_info': 800,
 
     # word embeddings args
     'std_dev': 0.01,  # variance
