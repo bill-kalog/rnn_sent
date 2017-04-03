@@ -116,7 +116,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # network.str_summary_type: "",
             network.input_keep_prob: config["keep_prob_inp"],
             network.output_keep_prob: config["keep_prob_out"],
-            network.seq_lengths: len(x_batch) * [config['n_words']],
+            #network.seq_lengths: len(x_batch) * [config['sentence_len']],
             network.batch_size: len(x_batch),
             network.metrics_weight: 1,
             network.fixed_acc_value: 0,
@@ -159,30 +159,21 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
             # sess.run(tf.global_variables_initializer())
 
-            # output, output_b = sess.run([b, reshaped_tensor_2])
-            # print (output)
-            # print ("ooooooooooooooooo")
-            # print (output_b)
+            # # print debug info about outputs of rnn and attentio 
+            # get_ = [network.output, network.out_state, network.seq_lengths , network.attention_scores]
+            # outp_, out_st_, lengths_, att_scores_ = sess.run(get_, feed_dict)
+            # print (outp_)
+            # print (out_st_)
+            # print (lengths_)
 
-            # test, max_indeces = sess.run([network.mask, network.max_indeces], feed_dict)
-            # output = sess.run([network.output], feed_dict)
-            # # print (output)
-            # print (len(output[0]))
-            # print (output[0][0].shape)
-            # # for index in range(3):
-            # #     print (output[0][index][10])
+            # print (x_batch[0])
+            # print (outp_[0][0])
+            # print ("states ", out_st_[0])
+            # print ("an output ", outp_[0][0])
+            # print (" scores ", att_scores_[0])
+            # print (" outputs shape ", outp_[0].shape, len(outp_))
 
-            # pool_list, stacked_output = sess.run(
-            #     [network.poolings, network.stacked_outputs], feed_dict)
-            # print (len(pool_list[0]))
-            # # for i in range(len(pool_list[0])):
-            # #     print ("{} : {}".format(i, pool_list[0][i].shape))
-
-            # out_0 = [network.attention_input]
-            # repr_ = sess.run(out_0, feed_dict)
-            # print (len(repr_))
-            # print (repr_[0].shape)
-
+            # sys.exit(0)
 
 
 
@@ -193,7 +184,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # print (scores_.shape)
             # print (repr_.shape)
 
-            # sys.exit(0)
+            
 
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
@@ -275,7 +266,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.dropout_prob: 1.0,
                     network.input_keep_prob: 1.0,
                     network.output_keep_prob: 1.0,
-                    network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
+                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 1,
                     network.fixed_acc_value: 0,
@@ -296,7 +287,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.dropout_prob: 1.0,
                     network.input_keep_prob: 1.0,
                     network.output_keep_prob: 1.0,
-                    network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
+                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 0.0,
                     network.fixed_acc_value: accuracy,
@@ -310,7 +301,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 # network.str_summary_type: "",
                 network.input_keep_prob: 1.0,
                 network.output_keep_prob: 1.0,
-                network.seq_lengths: len(x_batch) * [config['sentence_len']],
+                #network.seq_lengths: len(x_batch) * [config['sentence_len']],
                 network.batch_size: len(x_batch),
                 network.metrics_weight: 1,
                 network.fixed_acc_value: 0,
@@ -352,7 +343,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.dropout_prob: 1.0,
                     network.input_keep_prob: 1.0,
                     network.output_keep_prob: 1.0,
-                    network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
+                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 1,
                     network.fixed_acc_value: 0,
@@ -364,14 +355,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 output_ = [network.attention_scores]
                 scores = sess.run(
                     output_, feed_dict)
-                # print (scores[0])
-                # print (len(scores))
-                # print (scores[2].shape)
-                # print (predictions)
-                # print (probs)
-                # print (fc_layer)
-                # print (fc_layer.shape)
-                # print (true_pred)
                 scores_list += scores[0].tolist()
         else:
             print (
@@ -381,9 +364,24 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # Build a dictionary to save at json format
         # adds some overhead
         dic_ = {}
+
         for i in range(len(x_strings_batch)):
-            dic_['sent_' + str(i)] = {
-                "sentence": x_strings_batch[i], 'attention': scores_list[i]}
+            # save sentence and attnetion seperately
+            # dic_['sent_' + str(i)] = {
+            #     "sentence": x_strings_batch[i], 'attention': scores_list[i]}
+
+            # save info in tuple pairs (attention_pro, word) and sum
+            temp = []
+            # TODO need to split on tokens
+            print (len(x_strings_batch), len(x_strings_batch[i]), len(scores_list[i]))
+            for index_ in range(len(x_strings_batch[i])):
+                temp.append(
+                    (x_strings_batch[i][index_], scores_list[i][index_]))
+            dic_['sent_id_' + str(i)] = {
+                "mappings": temp,
+                "prob_sum": sum(scores_list[i][:x_strings_batch[i]])
+            }
+
         json.dump(dic_, open(path_, 'w'), indent="\t")
         print("Saved attention weights file at: {}".format(path_))
 
@@ -442,7 +440,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     network.dropout_prob: 1.0,
                     network.input_keep_prob: 1.0,
                     network.output_keep_prob: 1.0,
-                    network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
+                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
                     network.batch_size: len(mini_x_batch),
                     network.metrics_weight: 1,
                     network.fixed_acc_value: 0,
@@ -471,7 +469,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 network.dropout_prob: 1.0,
                 network.input_keep_prob: 1.0,
                 network.output_keep_prob: 1.0,
-                network.seq_lengths: len(x_batch) * [config['sentence_len']],
+                #network.seq_lengths: len(x_batch) * [config['sentence_len']],
                 network.batch_size: len(x_batch),
                 network.metrics_weight: 1,
                 network.fixed_acc_value: 0,

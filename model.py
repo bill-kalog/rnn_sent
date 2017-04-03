@@ -30,8 +30,8 @@ class RNN(object):
         # self.seq_lengths = tf.placeholder(
         #     tf.int32, shape=[None], name="early_stop")
         # self.seq_lengths = [self.n_words] * config['batch_size']
-        self.seq_lengths = tf.placeholder(
-            tf.int32, shape=[None], name="seq_length")
+        # self.seq_lengths = tf.placeholder(
+        #     tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
 
@@ -357,8 +357,8 @@ class RNN_Attention(object):
         # self.seq_lengths = tf.placeholder(
         #     tf.int32, shape=[None], name="early_stop")
         # self.seq_lengths = [self.n_words] * config['batch_size']
-        self.seq_lengths = tf.placeholder(
-            tf.int32, shape=[None], name="seq_length")
+        # self.seq_lengths = tf.placeholder(
+        #     tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
 
@@ -436,6 +436,7 @@ class RNN_Attention(object):
                 initial_state=initial_state,
                 sequence_length=self.seq_lengths
             )
+            self.out_state = state
             self.output = output
 
         self.attention()
@@ -487,7 +488,7 @@ class RNN_Attention(object):
             self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
             print ("attentio scores +++ ", self.attention_scores.shape)
             print ("att input +++", self.attention_input.shape)
-        with tf.name_scope("sentence_represenation"):
+        with tf.name_scope("sentence_representation"):
             # sentences = []
 
             # for i in range(self.batch_size):
