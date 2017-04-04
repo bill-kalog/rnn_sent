@@ -11,6 +11,8 @@ from tensorflow.contrib import learn
 import process_utils
 import sys
 import json
+import operator
+import pandas as pd
 
 
 def init_vocabulary_processor(dx_train, dx_dev):
@@ -243,9 +245,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         if current_step == config['save_step_dev_info']:
             save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
             save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
-            get_attention_weights(x_dev, y_dev, dx_dev, "attention.json")
+            get_attention_weights(x_dev, y_dev, dx_dev, "attention")
             get_attention_weights(
-                x_train, y_train, dx_train, "attention_train.json")
+                x_train, y_train, dx_train, "attention_train")
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -364,6 +366,10 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # Build a dictionary to save at json format
         # adds some overhead
         dic_ = {}
+        word_to_id = {}
+        word_id = -1
+        word_id_to_occ_num = {}  # number of occurences per word
+        word_id_to_prob_sum = {}  # probability sum of words
 
         for i in range(len(x_strings_batch)):
             # uncomment to save sentence and attention seperately
@@ -374,7 +380,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # save info in tuple pairs (attention_pro, word) and sum
             temp = []
             sum_ = 0
-            print (len(x_strings_batch), len(x_strings_batch[i].split()), len(scores_list[i]))
             for index_, word in enumerate(x_strings_batch[i].split()):
                 if index_ >= len(scores_list[i]):
                     # sentence bigger than max length
@@ -382,14 +387,49 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 temp.append(
                     (word, scores_list[i][index_]))
                 sum_ += scores_list[i][index_]
+                # store word probabilities
+                if word not in word_to_id:
+                    word_id += 1
+                    word_to_id[word] = word_id
+                word_id_to_occ_num[word_to_id[word]] = word_id_to_occ_num.get(
+                    word_to_id[word], 0) + 1
+                word_id_to_prob_sum[word] = word_id_to_prob_sum.get(
+                    word_to_id[word], 0.0) + float(scores_list[i][index_])
+
             dic_['sent_id_' + str(i)] = {
                 "mappings": temp,
                 "prob_sum": sum_,
                 "sentence": x_strings_batch[i],
             }
 
-        json.dump(dic_, open(path_, 'w'), indent="\t")
-        print("Saved attention weights file at: {}".format(path_))
+        # sort dictionaries by word_id values
+        # sort by values
+        words = sorted(word_to_id.items(), key=operator.itemgetter(1))
+        # sort by key
+        occurences = sorted(
+            word_id_to_occ_num.items(), key=operator.itemgetter(0))
+        probabilities_ = sorted(
+            word_id_to_prob_sum.items(), key=operator.itemgetter(0))
+        words = np.asarray(words)
+        d = {'id_': words[:, 1], 'word': words[:, 0],
+             'occurences': np.asarray(occurences)[:, 1],
+             'probabilities': np.asarray(probabilities_)[:, 1]}
+        df = pd.DataFrame(data=d)
+        # df['probabilities'] = df['probabilities'].astype(float)
+        df['mean'] = df['probabilities'] / df['occurences']  # get mean prob
+        df = df.sort_values(by='mean', ascending=False)
+        print (df)
+        df.to_json(
+            path_or_buf=path_ + "_vocab.json", orient='records')
+        # df.to_json(
+        #     path_or_buf=path_ + "_vocab.json", orient='records', lines=True)
+        # json.dump(df, open(path_ + "_vocab.json", 'w'), indent="\t")
+
+
+
+
+        json.dump(dic_, open(path_ + ".json", 'w'), indent="\t")
+        print("Saved attention weights file at: {}".format(path_ + ".json"))
 
     def save_embedding(embd_matrix):
         summary_path = os.path.join(out_dir, 'summaries', 'embeddings')
