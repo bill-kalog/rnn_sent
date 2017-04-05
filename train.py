@@ -360,7 +360,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 scores_list += scores[0].tolist()
         else:
             print (
-                "doesn't support having input as a single batch, set:"
+                "doesn't support having input as a single batch!! Set:"
                 "config['split_dev'] to True ")
             sys.exit(1)
         # Build a dictionary to save at json format
@@ -393,7 +393,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     word_to_id[word] = word_id
                 word_id_to_occ_num[word_to_id[word]] = word_id_to_occ_num.get(
                     word_to_id[word], 0) + 1
-                word_id_to_prob_sum[word] = word_id_to_prob_sum.get(
+                word_id_to_prob_sum[word_to_id[word]] = word_id_to_prob_sum.get(
                     word_to_id[word], 0.0) + float(scores_list[i][index_])
 
             dic_['sent_id_' + str(i)] = {

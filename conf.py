@@ -42,9 +42,9 @@ config = {
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
     # random vectors only
-    # 'train_embeddings': [True],
-    # 'word_vector_type': [],
-    # 'pretrained_vectors': [],
+    'train_embeddings': [True],
+    'word_vector_type': [],
+    'pretrained_vectors': [],
 
 
 
