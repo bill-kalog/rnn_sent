@@ -5,11 +5,11 @@ config = {
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
 
-    'bidirectional': False,  # bidirectional rnn or not
+    'bidirectional': True,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
     'pooling': False,  # choose between avg pooling or fc layer in the end
-    'attention': False,  # choose between attention or not
-    'use_attention': True,  # use attention on the rnn output
+    'attention': False,  # choose between attention or not (better not use it)
+    'use_attention': True,  # use attention on the rnn outputs
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # word embeding dimension and LSTM number of hidden units.
@@ -20,11 +20,11 @@ config = {
     'learning_rate': 1e-4,
     'dropout_rate': 0.7,
     'clip_threshold': 6,
-    'sentence_len': None,  # max sentence length
+    'sentence_len': None,  # max sentence length, leave as None
     'keep_prob_inp': .5,
     'keep_prob_out': .5,
-    'keep_prob_inp': 1.,
-    'keep_prob_out': 1.,
+    # 'keep_prob_inp': 1.,
+    # 'keep_prob_out': 1.,
 
     'evaluate_every': 5,  # evaluate on dev set
 
@@ -42,9 +42,9 @@ config = {
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
     # random vectors only
-    'train_embeddings': [True],
-    'word_vector_type': [],
-    'pretrained_vectors': [],
+    # 'train_embeddings': [True],
+    # 'word_vector_type': [],
+    # 'pretrained_vectors': [],
 
 
 

@@ -405,7 +405,7 @@ class RNN_Attention(object):
             in size, if they are at start or in between they are
             considered though
             '''
-            # doesn't work due to zero padding and <UNK> being both zero
+            # this doesn't work due to zero padding and <UNK> being both zero
             # self.seq_lengths = tf.reduce_sum(tf.sign(self.x), 1)
             mask = tf.sign(self.x)
             range_ = tf.range(
@@ -429,8 +429,19 @@ class RNN_Attention(object):
             self.batch_size, tf.float32)
 
         if config['bidirectional']:
-            pass  # TODO
+            self.dimensionality_mult = 2
+            output, state_fw, state_bw = tf.contrib.rnn.static_bidirectional_rnn(
+                inputs=rnn_input,
+                cell_fw=rnn_cell_seq,
+                cell_bw=rnn_cell_seq,
+                initial_state_fw=initial_state,
+                initial_state_bw=initial_state,
+                sequence_length=self.seq_lengths
+            )
+            self.output = output
+
         else:
+            self.dimensionality_mult = 1
             output, state = tf.contrib.rnn.static_rnn(
                 rnn_cell_seq, rnn_input,
                 initial_state=initial_state,
@@ -460,10 +471,11 @@ class RNN_Attention(object):
             #     self.output, [0, i, 0], [-1, i + 1, -1])
             #     for i in range(self.batch_size)]
 
+            # change dimensions sequence
             self.attention_input = tf.transpose(
                 self.output, perm=[1, 0, 2])
 
-            shape = [self.dim_proj, 1]
+            shape = [self.dim_proj * self.dimensionality_mult, 1]
             W = tf.Variable(
                 tf.truncated_normal(shape, stddev=0.01),
                 name="W_attent_fc"
@@ -475,7 +487,7 @@ class RNN_Attention(object):
             print (" attention___ ", self.attention_input.get_shape())
             # reshape 3d tensor to be mjltiplied by the weights
             temp_shape_in = [
-                self.batch_size * self.sentence_len, self.dim_proj]
+                self.batch_size * self.sentence_len, self.dim_proj * self.dimensionality_mult]
             # shape_out = [self.batch_size, self.sentence_len, 1]
             shape_out = [self.batch_size, self.sentence_len]
             self.unormalized_att_scores = tf.reshape(
@@ -484,6 +496,12 @@ class RNN_Attention(object):
             # relu
             self.unormalized_att_scores = tf.nn.relu(
                 tf.nn.bias_add(self.unormalized_att_scores, b), name="relu")
+            # or tanh
+            # self.unormalized_att_scores = tf.nn.tanh(
+            #     tf.nn.bias_add(self.unormalized_att_scores, b), name="tanh")
+            # or sigmoid
+            # self.unormalized_att_scores = tf.nn.sigmoid(
+            #     tf.nn.bias_add(self.unormalized_att_scores, b), name="sigmoid")
         with tf.name_scope("attention_softmax"):
             self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
             print ("attentio scores +++ ", self.attention_scores.shape)
@@ -511,7 +529,7 @@ class RNN_Attention(object):
             self.state_ = self.sentence_repr
 
         with tf.name_scope("fc_layer"):
-            shape = [self.dim_proj, self.num_classes]
+            shape = [self.dim_proj * self.dimensionality_mult, self.num_classes]
             W = tf.Variable(
                 tf.truncated_normal(shape, stddev=0.01),
                 name="W_fc_layer")
@@ -568,7 +586,7 @@ class RNN_Attention(object):
             self.fixed_acc_value
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
-        # Train Summaries
+        # Summaries
         self.summary_op = tf.summary.merge([loss_summary, acc_summary])
         # Dev summaries
         # self.dev_summary_op = tf.summary.merge([loss_summary, acc_summary])

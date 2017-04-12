@@ -94,7 +94,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     else:
         network = RNN(config, word_embd_tensor)
 
-
     dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
     dev_summary_writer = tf.summary.FileWriter(
         dev_summary_dir, sess.graph)
@@ -109,8 +108,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     # train fucntion
     def train_step(x_batch, y_batch, iter_):
-        # print("batch length {} shape {}". format(len(x_batch), x_batch[0].shape))
-
         feed_dict = {
             network.x: x_batch,
             network.y: y_batch,
@@ -245,9 +242,10 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         if current_step == config['save_step_dev_info']:
             save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
             save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
-            get_attention_weights(x_dev, y_dev, dx_dev, "attention")
-            get_attention_weights(
-                x_train, y_train, dx_train, "attention_train")
+            if config["use_attention"]:
+                get_attention_weights(x_dev, y_dev, dx_dev, "attention")
+                get_attention_weights(
+                    x_train, y_train, dx_train, "attention_train")
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -418,20 +416,20 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # df['probabilities'] = df['probabilities'].astype(float)
         df['mean'] = df['probabilities'] / df['occurences']  # get mean prob
         df = df.sort_values(by='mean', ascending=False)
-        print (df)
+        # print (df)
         df.to_json(
             path_or_buf=path_ + "_vocab.json", orient='records')
         # df.to_json(
         #     path_or_buf=path_ + "_vocab.json", orient='records', lines=True)
         # json.dump(df, open(path_ + "_vocab.json", 'w'), indent="\t")
 
-
-
-
         json.dump(dic_, open(path_ + ".json", 'w'), indent="\t")
         print("Saved attention weights file at: {}".format(path_ + ".json"))
 
     def save_embedding(embd_matrix):
+        '''
+        save word embeddings in tf appropriate format
+        '''
         summary_path = os.path.join(out_dir, 'summaries', 'embeddings')
         if not os.path.exists(summary_path):
             os.makedirs(summary_path)
@@ -463,7 +461,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     def save_dev_summary(x_batch, y_batch, x_strings_batch, name_):
         '''
-        save info for a batch ni order to plot in
+        save info for a batch in order to plot in
         bokeh later
         '''
         path_ = os.path.join(out_dir, name_)
@@ -507,7 +505,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 y_net += predictions.tolist()
                 true_labels += true_pred.tolist()
 
-
         else:
             feed_dict = {
                 network.x: x_batch,
@@ -525,12 +522,11 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             predictions, probabilities = sess.run(
                 output_, feed_dict)
 
-        print (
-            len(x_strings_batch), len(true_labels), len(y_net), len(prob_net),len(layer))
+        # print (
+        #     len(x_strings_batch), len(true_labels), len(y_net),
+        #     len(prob_net), len(layer))
         process_utils.save_info(
             x_strings_batch, true_labels, y_net, prob_net, layer, path_)
-
-
 
     # Generate batches
     print ("About to build batches for x:{} with number of words".format(
