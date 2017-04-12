@@ -5,7 +5,7 @@ config = {
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
 
-    'bidirectional': True,  # bidirectional rnn or not
+    'bidirectional': False,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
     'pooling': False,  # choose between avg pooling or fc layer in the end
     'attention': False,  # choose between attention or not (better not use it)
@@ -17,8 +17,8 @@ config = {
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 200,
     'n_words': None,  # Leave as None, dictionary size
-    'learning_rate': 1e-4,
-    'dropout_rate': 0.7,
+    'learning_rate': 5e-5,
+    'dropout_rate': 0.5,
     'clip_threshold': 6,
     'sentence_len': None,  # max sentence length, leave as None
     'keep_prob_inp': .5,

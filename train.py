@@ -30,9 +30,6 @@ def init_vocabulary_processor(dx_train, dx_dev):
     x_train = np.array(list(vocab_processor.transform(dx_train)))
     x_dev = np.array(list(vocab_processor.transform(dx_dev)))
 
-    # test = [" poidfnv paidfnapq padofn job test one two <unk> .. ", " tsting asflen", "asflen asflen job test one two tsting asflen"]
-    # x_train = np.array(list(vocab_processor.transform(test)))
-
     vocab_dict = vocab_processor.vocabulary_._mapping
     sorted_vocab = sorted(vocab_dict.items(), key=lambda x: x[1])
     vocabulary = list(list(zip(*sorted_vocab))[0])
@@ -174,15 +171,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
             # sys.exit(0)
 
-
-
-            # out = [network.sentence_repr, network.attention_scores]
-            # repr_, scores_ = sess.run(out, feed_dict)
-            # print (scores_)
-            # print ("sum ", np.sum(scores_[2]))
-            # print (scores_.shape)
-            # print (repr_.shape)
-
             
 
             output_ = [network.update, network.global_step,
@@ -190,39 +178,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                        network.summary_op]
             _, current_step, accuracy, loss, net_sum = sess.run(
                 output_, feed_dict)
-
-            # states = sess.run(network.state_all, feed_dict)
-            # output, state_ = sess.run([network.output, network.state_], feed_dict)
-            # lengths = sess.run([network.lengths], feed_dict)
-            # print (lengths)
-            # print (x_batch[1])
-            # print (x_batch[2])
-            # print (state_)
-            # print (output)
-            # print (len(output))
-            # for i in range(len(output)):
-            #     print (output[i])
-            #     print (output[i].shape)
-            # print (output[0].shape)
-            # print (output[1].shape)
-            # print (output[2].shape)
-
-            # _, output = sess.run([network.output, network.rnn_cell], feed_dict)
-            # print ("--------------", output)
-
-            # sys.exit(0)
-            # print (states.shape)
-            # print (states, len(states))
-            # print (states[0], len(states[0]))
-            # print (states[0][0].shape)
-            # print (states[0][1].shape)
-            # state_1, state_2 = sess.run(
-            #     [network.state_1, network.state_2], feed_dict)
-            # print (state_1)
-            # print (state_2)
-            # print (state_1.shape, state_2.shape)
-            # sys.exit(0)
-
 
         if config['save_step'] == current_step:
             # save word embeddings

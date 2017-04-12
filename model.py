@@ -199,6 +199,7 @@ class RNN(object):
 
                 
                 # out_shape = [self.batch_size, self.sentence_len, -1]
+                # Do average pooling over all output
                 self.poolings = []
                 for i in range(self.sentence_len):
                     pool_shape = [self.batch_size, 1, -1, 1]
@@ -231,6 +232,9 @@ class RNN(object):
                 # self.state_all = state
 
         if config["pooling"]:
+            '''
+            avg pooling over [output/state]
+            '''
             with tf.name_scope("avg_pooling"):
                 self.h_pool = tf.reshape(
                     self.state_, [self.batch_size, -1, 1, 1])
@@ -254,6 +258,9 @@ class RNN(object):
 
         else:
             with tf.name_scope("drop_out"):
+                '''
+                fc layer over [output/state]
+                '''
                 # use the cell memory state for information on sentence embedding
                 self.l_drop = tf.nn.dropout(
                     self.state_, self.dropout_prob, name="drop_out")
@@ -471,7 +478,7 @@ class RNN_Attention(object):
             #     self.output, [0, i, 0], [-1, i + 1, -1])
             #     for i in range(self.batch_size)]
 
-            # change dimensions sequence
+            # change sequence of dimensions
             self.attention_input = tf.transpose(
                 self.output, perm=[1, 0, 2])
 
