@@ -153,14 +153,6 @@ class RNN(object):
             # Create a recurrent neural network
 
             if config['bidirectional']:
-                # rnn_cell_bw = tf.contrib.rnn.DropoutWrapper(
-                #     tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
-                #     input_keep_prob=self.input_keep_prob,
-                #     output_keep_prob=self.output_keep_prob
-                # )
-                # rnn_cell_seq_bw = tf.contrib.rnn.MultiRNNCell(
-                #     [rnn_cell] * self.layers
-                # )
                 output, state_fw, state_bw = tf.contrib.rnn.static_bidirectional_rnn(
                     inputs=rnn_input,
                     cell_fw=rnn_cell_seq,
@@ -172,7 +164,10 @@ class RNN(object):
                 # self.state_ = state_fw[-1][0] + state_bw[-1][0]
                 # self.output = output
                 # self.state_ = state_bw[-1][0]
-                self.state_ = output[-1]
+                # self.state_ = output[-1]
+                # self.output = output
+                # self.output = state_bw[-1]
+                self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
                 # self.state_ = tf.concat([state_fw[-1][0], state_bw[-1][0]], 1)
                 # self.state_1 = state_fw[-1][0]
                 # self.state_2 = state_bw[-1][0]
@@ -194,30 +189,35 @@ class RNN(object):
                 #     initial_state=initial_state,
                 #     # sequence_length=self.seq_lengths
                 # )
-                self.state_ = output[-1]
-                self.output = output
 
-                
-                # out_shape = [self.batch_size, self.sentence_len, -1]
-                # Do average pooling over all output
-                self.poolings = []
-                for i in range(self.sentence_len):
-                    pool_shape = [self.batch_size, 1, -1, 1]
-                    pool_input = tf.reshape(
-                        self.output[i], pool_shape
-                    )
-                    pool = tf.nn.avg_pool(
-                        pool_input, strides=[1, 1, 1, 1],
-                        ksize=[1, 1, self.dim_proj, 1],
-                        padding='VALID', name="avg_pool_ouput"
-                    )
-                    pool = tf.reshape(
-                        pool, [-1])
-                    self.poolings.append(pool)
-                self.stacked_outputs = tf.stack(self.poolings)
-                self.state_ = tf.matrix_transpose(
-                    self.stacked_outputs, name="stacked_avg_outputs")
-                # self.state_ = output[-1]
+                # self.output = output
+                self.output = state[-1]
+                self.times = 1
+            if config["pool_all_output"]:
+                # Do average pooling over all outputs
+                with tf.name_scope("pool_all_output"):
+                    self.poolings = []
+                    for i in range(self.sentence_len):
+                        pool_shape = [self.batch_size, 1, -1, 1]
+                        pool_input = tf.reshape(
+                            self.output[i], pool_shape
+                        )
+                        pool = tf.nn.avg_pool(
+                            pool_input, strides=[1, 1, 1, 1],
+                            ksize=[1, 1, self.dim_proj, 1],
+                            padding='VALID', name="avg_pool_ouput"
+                        )
+                        pool = tf.reshape(
+                            pool, [-1])
+                        self.poolings.append(pool)
+                    self.stacked_outputs = tf.stack(self.poolings)
+                    self.state_ = tf.matrix_transpose(
+                        self.stacked_outputs, name="stacked_avg_outputs")
+                    print ("state_ shape: {}".format(self.state_.shape))
+            else:
+                # self.state_ = self.output[-1]
+                self.state_ = self.output
+
 
 
                 # self.stacked_outputs = tf.reshape(
@@ -225,7 +225,7 @@ class RNN(object):
 
                 # self.output_pool = 
                 # self.state_ = output[-1]
-                self.times = 1
+
                 # self.state = state[-1][0] + state[-1][1]
                 # self.state_ = tf.concat([state[-1][0], state[-1][1]], 1)
 
@@ -241,7 +241,8 @@ class RNN(object):
                 self.pool = tf.nn.avg_pool(
                     self.h_pool, strides=[1, 1, 1, 1],
                     # ksize=[1, self.sentence_len + 1, 1, 1],
-                    ksize=[1, self.times * self.dim_proj, 1, 1],
+                    # ksize=[1, self.times * self.dim_proj, 1, 1],
+                    ksize=[1, self.state_.shape[1], 1, 1],
                     padding='VALID', name="pool"
                 )
             with tf.name_scope("softmax"):
@@ -267,9 +268,11 @@ class RNN(object):
                 # self.l_drop = self.state_
 
             with tf.name_scope("fc_layer"):
+                print (self.state_.shape[1] , "-----------------------")
                 # shape = [tf.shape(self.state_)[1], self.num_classes]
-                shape = [self.times * self.dim_proj, self.num_classes]
-                shape = [self.sentence_len, self.num_classes]
+                # shape = [self.times * self.dim_proj, self.num_classes]
+                # shape = [self.sentence_len, self.num_classes]
+                shape = [int(self.state_.shape[1]), self.num_classes]
                 W = tf.Variable(
                     tf.truncated_normal(shape, stddev=0.01), name="W",
                 )
@@ -460,7 +463,6 @@ class RNN_Attention(object):
         self.attention()
 
     def attention(self):
-        # TODO attention as a module
         with tf.name_scope("attention_fc_layer"):
             # reshape out put to be [batches, seq_length, word_dimensionality]
             print ("output {} length {}".format(
@@ -500,6 +502,16 @@ class RNN_Attention(object):
             self.unormalized_att_scores = tf.reshape(
                 tf.matmul(tf.reshape(
                     self.attention_input, temp_shape_in), W), shape_out)
+
+            # force not to put weights at all after each sentence len is done
+            # filter_ = tf.ones_like(self.unormalized_att_scores, name='y') *\
+            #     -10**6
+            # case_ = tf.logical_or(
+            #     self.unormalized_att_scores > 0,
+            #     self.unormalized_att_scores < 0)
+            # self.unormalized_att_scores = tf.where(
+            #     case_, self.unormalized_att_scores, filter_)
+
             # relu
             self.unormalized_att_scores = tf.nn.relu(
                 tf.nn.bias_add(self.unormalized_att_scores, b), name="relu")
@@ -509,6 +521,24 @@ class RNN_Attention(object):
             # or sigmoid
             # self.unormalized_att_scores = tf.nn.sigmoid(
             #     tf.nn.bias_add(self.unormalized_att_scores, b), name="sigmoid")
+
+            # put a second fc layer -- bad
+            # shape = [self.sentence_len, self.sentence_len]
+            # W2 = tf.Variable(
+            #     tf.truncated_normal(shape, stddev=0.01),
+            #     name="W_attent_fc_2")
+            # b = tf.Variable(
+            #     tf.constant(0.1, shape=[self.sentence_len]),
+            #     name="b"
+            # )
+            # self.unormalized_att_scores = tf.nn.xw_plus_b(
+            #     self.unormalized_att_scores, W2, b)
+            # self.unormalized_att_scores = tf.nn.relu(
+            #     self.unormalized_att_scores, name="relu")
+
+            # punish values after end of sentence/doesn't work nice
+            # self.unormalized_att_scores = tf.where(
+            #     case_, self.unormalized_att_scores, filter_)
         with tf.name_scope("attention_softmax"):
             self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
             print ("attentio scores +++ ", self.attention_scores.shape)
@@ -530,10 +560,18 @@ class RNN_Attention(object):
             self.sentence_repr = tf.multiply(
                 self.attention_input, self.attention_scores_exp)
             print ("sentence repr ++ ", self.sentence_repr.shape)
+            
+            # self.range_lengths_ = [ range(self.seq_lengths[lengths]) for lengths in self.batch_size]
+            # self.a = self.sentence_repr[range(self.batch_size), self.range_lengths_, :]
+
             self.sentence_repr = tf.reduce_sum(self.sentence_repr, 1)
             print ("sentence repr reduced ++ ", self.sentence_repr.shape)
             # TODO wtite it better and more modular
             self.state_ = self.sentence_repr
+
+        with tf.name_scope("drop_out"):
+            self.l_drop = tf.nn.dropout(
+                self.state_, self.dropout_prob, name="drop_out")
 
         with tf.name_scope("fc_layer"):
             shape = [self.dim_proj * self.dimensionality_mult, self.num_classes]
@@ -544,7 +582,7 @@ class RNN_Attention(object):
                 0.1, shape=[self.num_classes]),
                 name="b"
             )
-            self.scores = tf.nn.xw_plus_b(self.sentence_repr, W, b)
+            self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
 
     def train(self):
         """ calculate accuracies, train and predict """

@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 from model import RNN
 from model import RNN_Attention
+from dmn import DMN
 from tensorflow.contrib.tensorboard.plugins import projector
 from tensorflow.contrib import learn
 import process_utils
@@ -86,7 +87,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     config['out_dir'] = out_dir
     print("Writing to {}\n".format(out_dir))
 
-    if config["use_attention"]:
+    if config['dmn']:
+        network = DMN(config, word_embd_tensor)
+    elif config["use_attention"]:
         network = RNN_Attention(config, word_embd_tensor)
     else:
         network = RNN(config, word_embd_tensor)
