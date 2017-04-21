@@ -30,7 +30,6 @@ def init_vocabulary_processor(dx_train, dx_dev):
     vocab_processor.fit(dx_train)
     x_train = np.array(list(vocab_processor.transform(dx_train)))
     x_dev = np.array(list(vocab_processor.transform(dx_dev)))
-
     vocab_dict = vocab_processor.vocabulary_._mapping
     sorted_vocab = sorted(vocab_dict.items(), key=lambda x: x[1])
     vocabulary = list(list(zip(*sorted_vocab))[0])
@@ -86,6 +85,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     if config['dmn']:
         network = DMN(config, word_embd_tensor)
+        string_question = "what is the sentiment ?"
+        question = np.array(vc_processsor.transform(string_question))
     elif config["use_attention"]:
         network = RNN_Attention(config, word_embd_tensor)
         question = None

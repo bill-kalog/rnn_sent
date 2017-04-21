@@ -27,7 +27,8 @@ class DMN(object):
         self.max_gradient_norm = config["clip_threshold"]
         self.x = tf.placeholder(tf.int32, [None, self.sentence_len], name="x")
         self.y = tf.placeholder(tf.float32, [None, self.num_classes], name="y")
-        self.question = tf.placeholder(tf.int32, [None], name="question_")
+        self.question = tf.placeholder(
+            tf.int32, [None, self.sentence_len], name="question_")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
 
@@ -38,6 +39,8 @@ class DMN(object):
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
 
         self.build_input()
+        self.encoder()
+        self.question_module()
         # self.attention()
         self.train()
         self.summarize()
@@ -61,20 +64,7 @@ class DMN(object):
                 self.w_embeddings, self.x)
             self.rnn_input = embedded_tokens
 
-        with tf.name_scope("calc_sequences_length"):
-            '''
-            calculate actual lenght of each sentence -- known bug
-            if a sentence ends with unknown tokens they are not considered
-            in size, if they are at start or in between they are
-            considered though
-            '''
-            # this doesn't work due to zero padding and <UNK> being both zero
-            # self.seq_lengths = tf.reduce_sum(tf.sign(self.x), 1)
-            mask = tf.sign(self.x)
-            range_ = tf.range(
-                start=1, limit=self.sentence_len + 1, dtype=tf.int32)
-            mask = tf.multiply(mask, range_, name="mask")
-            self.seq_lengths = tf.reduce_max(mask, axis=1)
+            self.seq_lengths = self.get_seq_lenghts("facts", self.x)
 
     def encoder(self):
         with tf.name_scope("rnn_cell"):
@@ -111,6 +101,37 @@ class DMN(object):
             )
             self.out_state = state
             self.output = output
+
+    def question_module(self):
+        """ declare question module """
+        with tf.name_scope("question"):
+            """ transform question to sequence of vectors
+            """
+            self.input_question = tf.nn.embedding_lookup(
+                self.w_embeddings, self.question)
+            self.seq_lengths_q = self.get_seq_lenghts(
+                "questions", self.question)
+
+            # create sequential rnn from single cells
+            rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+                # input_keep_prob=self.input_keep_prob,
+                # output_keep_prob=self.output_keep_prob
+            )
+            rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                [rnn_cell] * 1, state_is_tuple=True)
+            initial_state = rnn_cell_seq.zero_state(
+                self.batch_size, tf.float32)
+
+            output, state = tf.nn.dynamic_rnn(
+                rnn_cell_seq, self.input_question,
+                initial_state=initial_state,
+                sequence_length=self.seq_lengths_q
+            )
+            self.output_q = state
+
+    def episodic_module(self):
+        pass
 
     def attention(self):
         pass
@@ -158,3 +179,19 @@ class DMN(object):
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
         # Summaries
         self.summary_op = tf.summary.merge([loss_summary, acc_summary])
+
+    def get_seq_lenghts(self, type_, input_):
+        '''
+        calculate actual length of each sentence -- known bug
+        if a sentence ends with unknown tokens they are not considered
+        in size, if they are at start or in between they are
+        considered though
+        '''
+        with tf.name_scope("calc_sequences_length_" + type_):
+            # this doesn't work due to zero padding and <UNK> being both zero
+            # self.seq_lengths = tf.reduce_sum(tf.sign(self.x), 1)
+            mask = tf.sign(input_)
+            range_ = tf.range(
+                start=1, limit=self.sentence_len + 1, dtype=tf.int32)
+            mask = tf.multiply(mask, range_, name="mask")
+            return tf.reduce_max(mask, axis=1)

@@ -6,12 +6,12 @@ config = {
     'classes_num': 2,  # number of classes
     'dmn': False,  # use a dynamic memory network
 
-    'bidirectional': True,  # bidirectional rnn or not
+    'bidirectional': False,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
     'pooling': False,  # choose between avg pooling or fc layer in the end
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
-    'use_attention': False,  # use attention on the rnn outputs
+    'use_attention': True,  # use attention on the rnn outputs
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # word embeding dimension and LSTM number of hidden units.
@@ -31,7 +31,7 @@ config = {
     'evaluate_every': 5,  # evaluate on dev set
 
     'save_step': 800,
-    'save_step_dev_info': 800,
+    'save_step_dev_info': 2000,
 
     # word embeddings args
     'std_dev': 0.01,  # variance
