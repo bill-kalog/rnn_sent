@@ -11,7 +11,7 @@ config = {
     'pooling': False,  # choose between avg pooling or fc layer in the end
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
-    'use_attention': True,  # use attention on the rnn outputs
+    'use_attention': False,  # use attention on the rnn outputs
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # word embeding dimension and LSTM number of hidden units.

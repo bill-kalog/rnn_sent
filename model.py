@@ -304,7 +304,7 @@ class RNN(object):
         # if self.train_phase:
         with tf.name_scope("train"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        gradients = tf.gradients(self.losses, params)
+        gradients = tf.gradients(self.mean_loss, params)
         clipped_gradients, norm = tf.clip_by_global_norm(
             gradients, self.max_gradient_norm)
 
@@ -605,7 +605,7 @@ class RNN_Attention(object):
         # if self.train_phase:
         with tf.name_scope("train"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        gradients = tf.gradients(self.losses, params)
+        gradients = tf.gradients(self.mean_loss, params)
         clipped_gradients, norm = tf.clip_by_global_norm(
             gradients, self.max_gradient_norm)
 

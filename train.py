@@ -35,7 +35,7 @@ def init_vocabulary_processor(dx_train, dx_dev):
     sorted_vocab = sorted(vocab_dict.items(), key=lambda x: x[1])
     vocabulary = list(list(zip(*sorted_vocab))[0])
 
-    return x_train, x_dev, vocab_dict, vocabulary
+    return x_train, x_dev, vocab_dict, vocabulary, vocab_processor
 
 
 def init_embeddings(config, pretrained_embeddings, vocabulary):
@@ -60,15 +60,12 @@ def init_embeddings(config, pretrained_embeddings, vocabulary):
     return init_embd
 
 
-
-
-
 def set_train(sess, config, data, pretrained_embeddings=[]):
 
     dx_train, y_train, dx_dev, y_dev = data
 
-    x_train, x_dev, vocab_dict, vocabulary = init_vocabulary_processor(
-        dx_train, dx_dev)
+    x_train, x_dev, vocab_dict, vocabulary, vc_processsor = \
+        init_vocabulary_processor(dx_train, dx_dev)
 
     print("Vocabulary Size: {}".format(len(vocabulary)))
     print("Train/Dev split: {}/{},{}".format(
@@ -91,8 +88,10 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         network = DMN(config, word_embd_tensor)
     elif config["use_attention"]:
         network = RNN_Attention(config, word_embd_tensor)
+        question = None
     else:
         network = RNN(config, word_embd_tensor)
+        question = None
 
     dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
     dev_summary_writer = tf.summary.FileWriter(
@@ -108,20 +107,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     # train fucntion
     def train_step(x_batch, y_batch, iter_):
-        feed_dict = {
-            network.x: x_batch,
-            network.y: y_batch,
-            network.dropout_prob: config["dropout_rate"],
-            # network.str_summary_type: "",
-            network.input_keep_prob: config["keep_prob_inp"],
-            network.output_keep_prob: config["keep_prob_out"],
-            #network.seq_lengths: len(x_batch) * [config['sentence_len']],
-            network.batch_size: len(x_batch),
-            network.metrics_weight: 1,
-            network.fixed_acc_value: 0,
-            network.fixed_loss_value: 0
-            # network.train_phase: True
-        }
+
+        dropouts = [config["dropout_rate"], config["keep_prob_inp"], config["keep_prob_out"]]
+        reg_metrics = [1, 0, 0]
+        feed_dict = make_feed_dict(
+            x_batch, y_batch,
+            dropouts, reg_metrics, question)
 
         if (iter_ % 100 == 99):  # record full summaries:
             run_options = tf.RunOptions(
@@ -174,8 +165,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
             # sys.exit(0)
 
-            
-
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
                        network.summary_op]
@@ -218,18 +207,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 else:
                     mini_x_batch = x_batch[i:]
                     mini_y_batch = y_batch[i:]
-                feed_dict = {
-                    network.x: mini_x_batch,
-                    network.y: mini_y_batch,
-                    network.dropout_prob: 1.0,
-                    network.input_keep_prob: 1.0,
-                    network.output_keep_prob: 1.0,
-                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
-                    network.batch_size: len(mini_x_batch),
-                    network.metrics_weight: 1,
-                    network.fixed_acc_value: 0,
-                    network.fixed_loss_value: 0
-                }
+                dropouts = [1.0, 1.0, 1.0]
+                reg_metrics = [1, 0, 0]
+                feed_dict = make_feed_dict(
+                    mini_x_batch, mini_y_batch,
+                    dropouts, reg_metrics, question)
+
                 output_ = [network.global_step, network.accuracy,
                            network.mean_loss]
                 current_step, accuracy, loss = sess.run(output_, feed_dict)
@@ -239,33 +222,18 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             loss = loss_sum / len(x_batch)
             accuracy = acc_sum / len(x_batch)
             print ("           loss {} accuracy{}".format(loss, accuracy))
-            feed_dict = {
-                    network.x: mini_x_batch,
-                    network.y: mini_y_batch,
-                    network.dropout_prob: 1.0,
-                    network.input_keep_prob: 1.0,
-                    network.output_keep_prob: 1.0,
-                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
-                    network.batch_size: len(mini_x_batch),
-                    network.metrics_weight: 0.0,
-                    network.fixed_acc_value: accuracy,
-                    network.fixed_loss_value: loss
-            }
+            dropouts = [1.0, 1.0, 1.0]
+            reg_metrics = [0.0, accuracy, loss]
+            feed_dict = make_feed_dict(
+                mini_x_batch, mini_y_batch,
+                dropouts, reg_metrics, question)
         else:  # use whole batch
-            feed_dict = {
-                network.x: x_batch,
-                network.y: y_batch,
-                network.dropout_prob: 1.0,
-                # network.str_summary_type: "",
-                network.input_keep_prob: 1.0,
-                network.output_keep_prob: 1.0,
-                #network.seq_lengths: len(x_batch) * [config['sentence_len']],
-                network.batch_size: len(x_batch),
-                network.metrics_weight: 1,
-                network.fixed_acc_value: 0,
-                network.fixed_loss_value: 0
-                # network.train_phase: False
-            }
+            dropouts = [1.0, 1.0, 1.0]
+            reg_metrics = [1, 0, 0]
+            feed_dict = make_feed_dict(
+                x_batch, y_batch,
+                dropouts, reg_metrics, question)
+
         output_ = [network.global_step, network.accuracy,
                    network.mean_loss, network.summary_op]
         current_step, accuracy, loss, net_sum = sess.run(
@@ -279,6 +247,47 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             time_str, current_step, loss, accuracy, len(x_batch)))
         # if writer:
         #     writer.add_summary(summaries, step)
+
+    def make_feed_dict(
+            x_batch, y_batch, dropouts, reg_metrics, question=None):
+        """ build dictionary for feeding a network
+
+        Args:
+            x_batch : x values
+            y_batch : y values
+            dropouts : all dropouts hyperparameters in a list
+                [dropout_prob, input_keep_prob, output_keep_prob]
+            reg_metrics: list of weights used for normalizing dev set acc
+            question: transformed string representing a question to be asked
+                      at a Dynamc Memory Network
+        """
+        if question is None:
+            feed_dict = {
+                network.x: x_batch,
+                network.y: y_batch,
+                network.dropout_prob: dropouts[0],
+                network.input_keep_prob: dropouts[1],
+                network.output_keep_prob: dropouts[2],
+                network.batch_size: len(x_batch),
+                network.metrics_weight: reg_metrics[0],
+                network.fixed_acc_value: reg_metrics[1],
+                network.fixed_loss_value: reg_metrics[2]
+            }
+        else:
+            feed_dict = {
+                network.x: x_batch,
+                network.y: y_batch,
+                network.dropout_prob: dropouts[0],
+                network.input_keep_prob: dropouts[1],
+                network.output_keep_prob: dropouts[2],
+                network.batch_size: len(x_batch),
+                network.metrics_weight: reg_metrics[0],
+                network.fixed_acc_value: reg_metrics[1],
+                network.fixed_loss_value: reg_metrics[2],
+                network.question: question
+            }
+        return feed_dict
+
 
     def get_attention_weights(x_batch, y_batch, x_strings_batch, filename):
         '''
@@ -295,18 +304,11 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 else:
                     mini_x_batch = x_batch[i:]
                     mini_y_batch = y_batch[i:]
-                feed_dict = {
-                    network.x: mini_x_batch,
-                    network.y: mini_y_batch,
-                    network.dropout_prob: 1.0,
-                    network.input_keep_prob: 1.0,
-                    network.output_keep_prob: 1.0,
-                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
-                    network.batch_size: len(mini_x_batch),
-                    network.metrics_weight: 1,
-                    network.fixed_acc_value: 0,
-                    network.fixed_loss_value: 0
-                }
+                dropouts = [1.0, 1.0, 1.0]
+                reg_metrics = [1, 0, 0]
+                feed_dict = make_feed_dict(
+                    mini_x_batch, mini_y_batch,
+                    dropouts, reg_metrics, question)
 
                 # output_ = [network.predictions, network.true_predictions,
                 #            network.probs, network.state_]
@@ -436,18 +438,11 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 else:
                     mini_x_batch = x_batch[i:]
                     mini_y_batch = y_batch[i:]
-                feed_dict = {
-                    network.x: mini_x_batch,
-                    network.y: mini_y_batch,
-                    network.dropout_prob: 1.0,
-                    network.input_keep_prob: 1.0,
-                    network.output_keep_prob: 1.0,
-                    #network.seq_lengths: len(mini_x_batch) * [config['sentence_len']],
-                    network.batch_size: len(mini_x_batch),
-                    network.metrics_weight: 1,
-                    network.fixed_acc_value: 0,
-                    network.fixed_loss_value: 0
-                }
+                dropouts = [1.0, 1.0, 1.0]
+                reg_metrics = [1, 0, 0]
+                feed_dict = make_feed_dict(
+                    mini_x_batch, mini_y_batch,
+                    dropouts, reg_metrics, question)
 
                 output_ = [network.predictions, network.true_predictions,
                            network.probs, network.state_]
@@ -464,18 +459,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 true_labels += true_pred.tolist()
 
         else:
-            feed_dict = {
-                network.x: x_batch,
-                network.y: y_batch,
-                network.dropout_prob: 1.0,
-                network.input_keep_prob: 1.0,
-                network.output_keep_prob: 1.0,
-                #network.seq_lengths: len(x_batch) * [config['sentence_len']],
-                network.batch_size: len(x_batch),
-                network.metrics_weight: 1,
-                network.fixed_acc_value: 0,
-                network.fixed_loss_value: 0
-            }
+            dropouts = [1.0, 1.0, 1.0]
+            reg_metrics = [1, 0, 0]
+            feed_dict = make_feed_dict(
+                x_batch, y_batch,
+                dropouts, reg_metrics, question)
+
             output_ = [network.predictions, network.y]
             predictions, probabilities = sess.run(
                 output_, feed_dict)
