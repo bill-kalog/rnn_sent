@@ -131,6 +131,21 @@ class DMN(object):
             self.output_q = state
 
     def episodic_module(self):
+        """takes the final state of question module
+        and the sequence of outputs of our encoder
+        and produces 'memories' using an rnn. 
+        uses attention over the encoders' states
+        """
+        rnn_cell = ""  # TODO
+        initial_state = self.output_q
+        rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+            [rnn_cell] * 1, state_is_tuple=True)
+
+
+
+    def answer_module(self):
+        """take the final state/episode of episodic module  and
+        producess and answer"""
         pass
 
     def attention(self):
