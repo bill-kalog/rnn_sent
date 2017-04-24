@@ -463,6 +463,7 @@ class RNN_Attention(object):
         self.attention()
 
     def attention(self):
+
         with tf.name_scope("attention_fc_layer"):
             # reshape out put to be [batches, seq_length, word_dimensionality]
             print ("output {} length {}".format(
@@ -539,6 +540,59 @@ class RNN_Attention(object):
             # punish values after end of sentence/doesn't work nice
             # self.unormalized_att_scores = tf.where(
             #     case_, self.unormalized_att_scores, filter_)
+
+            print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
+            i = tf.constant(0)
+            # z_initial = tf.constant([], dtype=tf.float32)
+            # temp_attentions = tf.constant()
+            # a_list = []
+            # list_scores = []
+            a_list = tf.Variable([], validate_shape=False, name="representations")
+            list_scores = tf.Variable([], validate_shape=False, name="attention_scores")
+            # z_initial = tf.constant(0.0)
+            # while_condition = lambda i: tf.less(i, self.batch_size)
+
+            def condition(i, a_list, list_scores):
+                return tf.less(i, 1)
+                # return tf.less(i, self.batch_size)
+
+            def body(i, a_list, list_scores):
+                # self.a_list.append(self.unormalized_att_scores[i, 0, 0])
+                # for j in range(self.seq_lengths(i)):
+                up_to = self.seq_lengths[i]
+                temp_slice = tf.slice(self.unormalized_att_scores, [i, 0], [1, up_to])
+                softmax_ = tf.nn.softmax(temp_slice)
+
+                attention_scores_exp = tf.expand_dims(softmax_, 2)
+                temp_slice_input = tf.slice(self.attention_input, [i, 0, 0], [1, up_to, -1])
+                repr_ = tf.multiply(temp_slice_input, attention_scores_exp)
+                
+                # a_list.append(tf.reduce_sum(repr_, 1))
+                # a_list = tf.parallel_stack([a_list, tf.reduce_sum(repr_, 1)])
+                a = tf.reduce_sum(repr_, 1)
+                if tf.add(i, 0) == tf.constant(0):
+                    a_list = a
+                else:
+                    a_list = a
+                    # a_list = tf.stack([a_list, a], axis=1)
+                a_list = softmax_
+                # list_scores = tf.concat([list_scores, softmax_], 0)
+                list_scores = a
+                i = tf.add(i, 1)
+                # i = up_to
+                # list_scores.append(softmax_)
+                # temp = tf.reduce_sum(self.unormalized_att_scores[i, :up_to])
+                # z_next = tf.concat(0, [z_prev, self.unormalized_att_scores[i, 0]])
+                # z_next = tf.add(z_prev, self.unormalized_att_scores[i, 0])
+                # self.a_list.append(self.unormalized_att_scores[i, 0])
+                return [i, a_list, list_scores]
+
+            self.r, self.a_list, self.z_ = tf.while_loop(
+                condition, body, [i, a_list, list_scores])
+                # shape_invariants=[i.get_shape(), tf.TensorShape([None]), tf.TensorShape([None, None])])
+
+
+
         with tf.name_scope("attention_softmax"):
             self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
             print ("attentio scores +++ ", self.attention_scores.shape)

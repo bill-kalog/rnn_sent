@@ -137,16 +137,28 @@ class DMN(object):
         uses attention over the encoders' states
         """
         rnn_cell = ""  # TODO
+        # initial state is the question vector
         initial_state = self.output_q
         rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
             [rnn_cell] * 1, state_is_tuple=True)
 
-
-
     def answer_module(self):
         """take the final state/episode of episodic module  and
-        producess and answer"""
-        pass
+        producess an answer (here a simplified version without an RNN
+        to build the answer, using just a fc layer)"""
+        with tf.name_scope("answer_module"):
+            # initial state is the last memory
+            # initial_state = self.last_memory
+            shape = [int(self.last_memory.shape[1]), self.num_classes]
+            W = tf.Variable(
+                tf.truncated_normal(shape, stddev=0.01), name="W_answer",
+            )
+            b = tf.Variable(tf.constant(
+                0.1, shape=[self.num_classes]),
+                trainable=True, name="b_answer"
+            )
+            self.scores = tf.nn.xw_plus_b(self.last_memory, W, b)
+
 
     def attention(self):
         pass
