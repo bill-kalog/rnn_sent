@@ -570,12 +570,13 @@ class RNN_Attention(object):
                 # a_list.append(tf.reduce_sum(repr_, 1))
                 # a_list = tf.parallel_stack([a_list, tf.reduce_sum(repr_, 1)])
                 a = tf.reduce_sum(repr_, 1)
-                if tf.add(i, 0) == tf.constant(0):
-                    a_list = a
-                else:
-                    a_list = a
+                # if tf.equal(i, 0):
+                #     a_list = a
+                # else:
+                #     a_list = a_list = softmax_
+                a_list = tf.cond(tf.equal(i, 0), lambda: a, lambda: softmax_)
                     # a_list = tf.stack([a_list, a], axis=1)
-                a_list = softmax_
+                # a_list = softmax_
                 # list_scores = tf.concat([list_scores, softmax_], 0)
                 list_scores = a
                 i = tf.add(i, 1)
