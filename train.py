@@ -319,6 +319,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         '''
         path_ = os.path.join(out_dir, filename)
         scores_list = []
+        seq_length_list = []
         if config['split_dev']:
             mini_size = config['dev_minibatch']
             for i in range(0, len(x_batch), mini_size):
@@ -336,10 +337,13 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
                 # output_ = [network.predictions, network.true_predictions,
                 #            network.probs, network.state_]
-                output_ = [network.attention_scores]
-                scores = sess.run(
+                output_ = [network.attention_scores, network.seq_lengths]
+                scores, seq_lengths = sess.run(
                     output_, feed_dict)
-                scores_list += scores[0].tolist()
+                scores_list += scores.tolist()
+                # print ("seqeunce len ------------", scores, scores.tolist())
+                seq_length_list += seq_lengths.tolist()
+
         else:
             print (
                 "doesn't support having input as a single batch!! Set:"
@@ -362,7 +366,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # save info in tuple pairs (attention_pro, word) and sum
             temp = []
             sum_ = 0
-            for index_, word in enumerate(x_strings_batch[i].split()):
+            # transform to text from vocab_processor
+            reversed_text = list(vc_processsor.reverse([x_batch[i].tolist()]))
+            rv_text_to_list = reversed_text[0].split()
+
+            for index_ in range(seq_length_list[i]):
+                word = rv_text_to_list[index_]
                 if index_ >= len(scores_list[i]):
                     # sentence bigger than max length
                     break
@@ -381,6 +390,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             dic_['sent_id_' + str(i)] = {
                 "mappings": temp,
                 "prob_sum": sum_,
+                "sent_length": seq_length_list[i],
+                # "sent2num": x_batch[i].tolist(),
+                "reversed": reversed_text,
                 "sentence": x_strings_batch[i],
             }
 

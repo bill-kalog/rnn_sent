@@ -378,7 +378,6 @@ class RNN_Attention(object):
         self.fixed_acc_value = tf.placeholder(tf.float32, name="f_acc_value")
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
         # self.train_phase = tf.placeholder(tf.bool, name="train_flag")
-
         self.make_graph(config)
         # self.attention()
         self.train()
@@ -541,28 +540,24 @@ class RNN_Attention(object):
             # self.unormalized_att_scores = tf.where(
             #     case_, self.unormalized_att_scores, filter_)
 
+            # caclulate attention using a for loop over the batch in order
+            # not to take into account zero padding
             print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
             i = tf.constant(0)
-            # z_initial = tf.constant([], dtype=tf.float32)
-            # temp_attentions = tf.constant()
-            # a_list = []
-            # list_scores = []
+
             # a_list = tf.Variable([], validate_shape=False, name="representations")
             a_list = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="representations")
             list_scores = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="attention_scores")
 
             # list_scores = tf.Variable([], validate_shape=False, name="attention_scores")
-            # z_initial = tf.constant(0.0)
-            # while_condition = lambda i: tf.less(i, self.batch_size)
 
             def condition(i, a_list, list_scores):
                 # return tf.less(i, 20)
                 return tf.less(i, self.batch_size)
 
             def body(i, a_list, list_scores):
-                # self.a_list.append(self.unormalized_att_scores[i, 0, 0])
-                # for j in range(self.seq_lengths(i)):
                 up_to = self.seq_lengths[i]
+                
                 temp_slice = tf.slice(self.unormalized_att_scores, [i, 0], [1, up_to])
                 softmax_ = tf.nn.softmax(temp_slice)
 
@@ -572,14 +567,22 @@ class RNN_Attention(object):
                 sent_repr_ = tf.reduce_sum(repr_, 1)
 
                 a_list = tf.cond(
-                    tf.equal(i, 0), lambda: sent_repr_, lambda: tf.concat([a_list, sent_repr_], axis=0))
-                # list_scores = tf.cond(
-                #     tf.equal(i, 0), lambda: softmax_, lambda: tf.stack([list_scores, softmax_], axis=1))
+                    tf.equal(i, 0), lambda: sent_repr_, lambda: tf.concat(
+                        [a_list, sent_repr_], axis=0)
+                )
+                # zero pad attentions to fit in tensor
+                paddings = [[0, 0], [0, self.sentence_len - self.seq_lengths[i]]]
+
+                padded_softmax = tf.pad(softmax_, paddings, "CONSTANT")
+                padded_softmax = tf.reshape(padded_softmax, [1, -1])
+                list_scores = tf.cond(
+                    tf.equal(i, 0), lambda: padded_softmax, lambda: tf.concat(
+                        [list_scores, padded_softmax], axis=0)
+                )
 
                 # a_list = tf.stack([a_list, a], axis=1)
                 # a_list = softmax_
                 # list_scores = tf.concat([list_scores, softmax_], 0)
-                list_scores = softmax_
                 i = tf.add(i, 1)
                 # i = up_to
                 # list_scores.append(softmax_)
@@ -606,6 +609,7 @@ class RNN_Attention(object):
             print ("sentence repr reduced ++ ", self.sentence_repr.shape)
             # TODO wtite it better and more modular
             self.state_ = self.sentence_repr
+            self.attention_scores = self.z_
 
         # attention using whole tensor in  caclulation 
         # NOT until each and every sentence length, so attention is distributed 
