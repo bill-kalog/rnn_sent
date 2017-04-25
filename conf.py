@@ -6,7 +6,7 @@ config = {
     'classes_num': 2,  # number of classes
     'dmn': False,  # use a dynamic memory network
 
-    'bidirectional': False,  # bidirectional rnn or not
+    'bidirectional': True,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
     'pooling': False,  # choose between avg pooling or fc layer in the end
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN

@@ -471,14 +471,6 @@ class RNN_Attention(object):
             self.output = tf.stack(list(self.output))
             print (" out____ ", self.output.get_shape())
 
-            # don;t work because bathc size is variable
-            # try tf.slice(input_, begin, size, name=None)
-            # self.attention_input = [
-            #     self.output[:, i, :] for i in range(self.batch_size)]
-
-            # self.attention_input = [tf.slice(
-            #     self.output, [0, i, 0], [-1, i + 1, -1])
-            #     for i in range(self.batch_size)]
 
             # change sequence of dimensions
             self.attention_input = tf.transpose(
@@ -513,11 +505,11 @@ class RNN_Attention(object):
             #     case_, self.unormalized_att_scores, filter_)
 
             # relu
-            self.unormalized_att_scores = tf.nn.relu(
-                tf.nn.bias_add(self.unormalized_att_scores, b), name="relu")
+            # self.unormalized_att_scores = tf.nn.relu(
+            #     tf.nn.bias_add(self.unormalized_att_scores, b), name="relu")
             # or tanh
-            # self.unormalized_att_scores = tf.nn.tanh(
-            #     tf.nn.bias_add(self.unormalized_att_scores, b), name="tanh")
+            self.unormalized_att_scores = tf.nn.tanh(
+                tf.nn.bias_add(self.unormalized_att_scores, b), name="tanh")
             # or sigmoid
             # self.unormalized_att_scores = tf.nn.sigmoid(
             #     tf.nn.bias_add(self.unormalized_att_scores, b), name="sigmoid")
@@ -543,13 +535,11 @@ class RNN_Attention(object):
             # caclulate attention using a for loop over the batch in order
             # not to take into account zero padding
             print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
-            i = tf.constant(0)
 
-            # a_list = tf.Variable([], validate_shape=False, name="representations")
+            # initialize tensors, (size doesn't matter)
             a_list = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="representations")
             list_scores = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="attention_scores")
-
-            # list_scores = tf.Variable([], validate_shape=False, name="attention_scores")
+            i = tf.constant(0)
 
             def condition(i, a_list, list_scores):
                 # return tf.less(i, 20)
@@ -580,39 +570,29 @@ class RNN_Attention(object):
                         [list_scores, padded_softmax], axis=0)
                 )
 
-                # a_list = tf.stack([a_list, a], axis=1)
-                # a_list = softmax_
-                # list_scores = tf.concat([list_scores, softmax_], 0)
                 i = tf.add(i, 1)
-                # i = up_to
-                # list_scores.append(softmax_)
-                # temp = tf.reduce_sum(self.unormalized_att_scores[i, :up_to])
-                # z_next = tf.concat(0, [z_prev, self.unormalized_att_scores[i, 0]])
-                # z_next = tf.add(z_prev, self.unormalized_att_scores[i, 0])
-                # self.a_list.append(self.unormalized_att_scores[i, 0])
                 return [i, a_list, list_scores]
 
-            self.r, self.a_list, self.z_ = tf.while_loop(
+            _, self.a_list, self.attention_scores = tf.while_loop(
                 condition, body, [i, a_list, list_scores],
                 shape_invariants=[i.get_shape(),
                                   tf.TensorShape([None, None]),
                                   tf.TensorShape([None, None])]
             )
             print (" a list shape ======== : {}".format(self.a_list.shape))
-            representations_shape = [-1, self.dim_proj]
-
+            representations_shape = [-1, self.dim_proj * self.dimensionality_mult]
             self.a_list = tf.reshape(self.a_list, representations_shape)
-            # self.a_list = tf.slice(self.a_list, [1, 0], [1, up_to])
-                # shape_invariants=[i.get_shape(), tf.TensorShape([None]), tf.TensorShape([None, None])])
+
+         
             print (" a list shape 2 ======== : {}".format(self.a_list.shape))
             self.sentence_repr = tf.reshape(self.a_list, representations_shape)
             print ("sentence repr reduced ++ ", self.sentence_repr.shape)
             # TODO wtite it better and more modular
             self.state_ = self.sentence_repr
-            self.attention_scores = self.z_
 
-        # attention using whole tensor in  caclulation 
-        # NOT until each and every sentence length, so attention is distributed 
+        # attention using whole tensor in  caclulation, 
+        # OPPOSITE to each and every sentence length, 
+        # as a result, attention mass is distributed
         # in all entries untill max_sentence_length
         # with tf.name_scope("attention_softmax"):
         #     self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
@@ -626,7 +606,7 @@ class RNN_Attention(object):
         #     self.sentence_repr = tf.multiply(
         #         self.attention_input, self.attention_scores_exp)
         #     print ("sentence repr ++ ", self.sentence_repr.shape)
-            
+
         #     self.sentence_repr = tf.reduce_sum(self.sentence_repr, 1)
         #     print ("sentence repr reduced ++ ", self.sentence_repr.shape)
         #     self.state_ = self.sentence_repr
