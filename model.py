@@ -547,14 +547,17 @@ class RNN_Attention(object):
             # temp_attentions = tf.constant()
             # a_list = []
             # list_scores = []
-            a_list = tf.Variable([], validate_shape=False, name="representations")
-            list_scores = tf.Variable([], validate_shape=False, name="attention_scores")
+            # a_list = tf.Variable([], validate_shape=False, name="representations")
+            a_list = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="representations")
+            list_scores = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="attention_scores")
+
+            # list_scores = tf.Variable([], validate_shape=False, name="attention_scores")
             # z_initial = tf.constant(0.0)
             # while_condition = lambda i: tf.less(i, self.batch_size)
 
             def condition(i, a_list, list_scores):
-                return tf.less(i, 1)
-                # return tf.less(i, self.batch_size)
+                # return tf.less(i, 20)
+                return tf.less(i, self.batch_size)
 
             def body(i, a_list, list_scores):
                 # self.a_list.append(self.unormalized_att_scores[i, 0, 0])
@@ -566,19 +569,17 @@ class RNN_Attention(object):
                 attention_scores_exp = tf.expand_dims(softmax_, 2)
                 temp_slice_input = tf.slice(self.attention_input, [i, 0, 0], [1, up_to, -1])
                 repr_ = tf.multiply(temp_slice_input, attention_scores_exp)
-                
-                # a_list.append(tf.reduce_sum(repr_, 1))
-                # a_list = tf.parallel_stack([a_list, tf.reduce_sum(repr_, 1)])
-                a = tf.reduce_sum(repr_, 1)
-                # if tf.equal(i, 0):
-                #     a_list = a
-                # else:
-                #     a_list = a_list = softmax_
-                a_list = tf.cond(tf.equal(i, 0), lambda: a, lambda: softmax_)
-                    # a_list = tf.stack([a_list, a], axis=1)
+                sent_repr_ = tf.reduce_sum(repr_, 1)
+
+                a_list = tf.cond(
+                    tf.equal(i, 0), lambda: sent_repr_, lambda: tf.concat([a_list, sent_repr_], axis=0))
+                # list_scores = tf.cond(
+                #     tf.equal(i, 0), lambda: softmax_, lambda: tf.stack([list_scores, softmax_], axis=1))
+
+                # a_list = tf.stack([a_list, a], axis=1)
                 # a_list = softmax_
                 # list_scores = tf.concat([list_scores, softmax_], 0)
-                list_scores = a
+                list_scores = softmax_
                 i = tf.add(i, 1)
                 # i = up_to
                 # list_scores.append(softmax_)
@@ -589,40 +590,42 @@ class RNN_Attention(object):
                 return [i, a_list, list_scores]
 
             self.r, self.a_list, self.z_ = tf.while_loop(
-                condition, body, [i, a_list, list_scores])
+                condition, body, [i, a_list, list_scores],
+                shape_invariants=[i.get_shape(),
+                                  tf.TensorShape([None, None]),
+                                  tf.TensorShape([None, None])]
+            )
+            print (" a list shape ======== : {}".format(self.a_list.shape))
+            representations_shape = [-1, self.dim_proj]
+
+            self.a_list = tf.reshape(self.a_list, representations_shape)
+            # self.a_list = tf.slice(self.a_list, [1, 0], [1, up_to])
                 # shape_invariants=[i.get_shape(), tf.TensorShape([None]), tf.TensorShape([None, None])])
-
-
-
-        with tf.name_scope("attention_softmax"):
-            self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
-            print ("attentio scores +++ ", self.attention_scores.shape)
-            print ("att input +++", self.attention_input.shape)
-        with tf.name_scope("sentence_representation"):
-            # sentences = []
-
-            # for i in range(self.batch_size):
-            #     temp = tf.multiply(
-            #         self.attention_input[i], self.attention_scores[i])
-            #     sentences.append(temp)
-            # self.sentence_repr = tf.stack(sentences)
-
-            self.attention_scores_exp = tf.expand_dims(
-                self.attention_scores, 2)
-            print ("attention_scores_exp ++ ", self.attention_scores_exp.shape)
-
-
-            self.sentence_repr = tf.multiply(
-                self.attention_input, self.attention_scores_exp)
-            print ("sentence repr ++ ", self.sentence_repr.shape)
-            
-            # self.range_lengths_ = [ range(self.seq_lengths[lengths]) for lengths in self.batch_size]
-            # self.a = self.sentence_repr[range(self.batch_size), self.range_lengths_, :]
-
-            self.sentence_repr = tf.reduce_sum(self.sentence_repr, 1)
+            print (" a list shape 2 ======== : {}".format(self.a_list.shape))
+            self.sentence_repr = tf.reshape(self.a_list, representations_shape)
             print ("sentence repr reduced ++ ", self.sentence_repr.shape)
             # TODO wtite it better and more modular
             self.state_ = self.sentence_repr
+
+        # attention using whole tensor in  caclulation 
+        # NOT until each and every sentence length, so attention is distributed 
+        # in all entries untill max_sentence_length
+        # with tf.name_scope("attention_softmax"):
+        #     self.attention_scores = tf.nn.softmax(self.unormalized_att_scores)
+        #     print ("attentio scores +++ ", self.attention_scores.shape)
+        #     print ("att input +++", self.attention_input.shape)
+        # with tf.name_scope("sentence_representation"):
+        #     self.attention_scores_exp = tf.expand_dims(
+        #         self.attention_scores, 2)
+        #     print ("attention_scores_exp ++ ", self.attention_scores_exp.shape)
+
+        #     self.sentence_repr = tf.multiply(
+        #         self.attention_input, self.attention_scores_exp)
+        #     print ("sentence repr ++ ", self.sentence_repr.shape)
+            
+        #     self.sentence_repr = tf.reduce_sum(self.sentence_repr, 1)
+        #     print ("sentence repr reduced ++ ", self.sentence_repr.shape)
+        #     self.state_ = self.sentence_repr
 
         with tf.name_scope("drop_out"):
             self.l_drop = tf.nn.dropout(

@@ -175,16 +175,16 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # print (z_)
             # sys.exit(0)
 
-            get_ = [network.update, network.r, network.a_list, network.z_, network.seq_lengths, network.unormalized_att_scores]
-            _, r, a_list,  z_, out_st_, un_scores = sess.run(
-                get_, feed_dict)
-            print (r)
-            print (a_list)
-            print ("Z ", z_)
-            print (" unrome scores {}".format(un_scores[0]))
-            print ("sequence lengths: {}".format(out_st_))
-            print ("summation of Z {} shape {}".format(np.sum(z_), z_.shape))
-            sys.exit(0)
+            # get_ = [network.update, network.r, network.a_list, network.z_, network.seq_lengths, network.unormalized_att_scores]
+            # _, r, a_list,  z_, out_st_, un_scores = sess.run(
+            #     get_, feed_dict)
+            # print ("R values: {} R shape: {}".format(r, r.shape))
+            # print ("a_list values: {} a_list shape: {}".format(a_list, a_list.shape))
+            # print ("Z ", z_)
+            # print (" unrome scores {}".format(un_scores[0]))
+            # print ("sequence lengths: {}".format(out_st_))
+            # print ("summation of Z {} shape {}".format(np.sum(z_), z_.shape))
+            # sys.exit(0)
             
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
