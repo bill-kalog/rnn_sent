@@ -495,15 +495,10 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 true_labels += true_pred.tolist()
 
         else:
-            dropouts = [1.0, 1.0, 1.0]
-            reg_metrics = [1, 0, 0]
-            feed_dict = make_feed_dict(
-                x_batch, y_batch,
-                dropouts, reg_metrics, question)
-
-            output_ = [network.predictions, network.y]
-            predictions, probabilities = sess.run(
-                output_, feed_dict)
+            print (
+                "doesn't support having input as a single batch!! Set:"
+                "config['split_dev'] to True ")
+            sys.exit(1)
 
         # print (
         #     len(x_strings_batch), len(true_labels), len(y_net),

@@ -161,13 +161,21 @@ class RNN(object):
                     initial_state_bw=initial_state,
                     sequence_length=self.seq_lengths
                 )
+                if config["GRU"]:
+                    self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
+                    # self.output = output[-1]
+                else:  # LSTM
+                    self.output = tf.concat(
+                        [state_fw[0][-1], state_bw[0][-1]], 1)
+
                 # self.state_ = state_fw[-1][0] + state_bw[-1][0]
                 # self.output = output
                 # self.state_ = state_bw[-1][0]
                 # self.state_ = output[-1]
                 # self.output = output
                 # self.output = state_bw[-1]
-                self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
+                # self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
+                
                 # self.state_ = tf.concat([state_fw[-1][0], state_bw[-1][0]], 1)
                 # self.state_1 = state_fw[-1][0]
                 # self.state_2 = state_bw[-1][0]
@@ -183,6 +191,10 @@ class RNN(object):
                     initial_state=initial_state,
                     sequence_length=self.seq_lengths
                 )
+                if config['GRU']:
+                    self.output = state[-1]
+                else:
+                    self.output = state[0][-1]
                 # output, state = tf.nn.dynamic_rnn(
                 #     cell=rnn_cell_seq,
                 #     inputs=rnn_input,
@@ -190,8 +202,6 @@ class RNN(object):
                 #     # sequence_length=self.seq_lengths
                 # )
 
-                # self.output = output
-                self.output = state[-1]
                 self.times = 1
             if config["pool_all_output"]:
                 # Do average pooling over all outputs
@@ -272,7 +282,10 @@ class RNN(object):
                 # shape = [tf.shape(self.state_)[1], self.num_classes]
                 # shape = [self.times * self.dim_proj, self.num_classes]
                 # shape = [self.sentence_len, self.num_classes]
+                
                 shape = [int(self.state_.shape[1]), self.num_classes]
+                # hidden_layer_dim = 150
+                # shape = [int(self.state_.shape[1]), hidden_layer_dim]
                 W = tf.Variable(
                     tf.truncated_normal(shape, stddev=0.01), name="W",
                 )
@@ -282,6 +295,19 @@ class RNN(object):
                 )
 
                 self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
+
+                # add another layer
+                # self.scores = tf.nn.relu(self.scores, name='RELU_1')
+                # shape = [hidden_layer_dim, self.num_classes]
+                # W_2 = tf.Variable(
+                #     tf.truncated_normal(shape, stddev=0.01), name="W",
+                # )
+                # b_2 = tf.Variable(tf.constant(
+                #     0.1, shape=[self.num_classes]),
+                #     trainable=True, name="b"
+                # )
+                # self.scores = tf.nn.xw_plus_b(self.scores, W_2, b_2)
+
                 # self.scores = tf.nn.sigmoid(self.scores, name='sigmoid')
 
         # self.y = tf.nn.softmax(self.scores)
@@ -426,6 +452,13 @@ class RNN_Attention(object):
             if config['GRU']:  # use GRU cell
                 self.rnn_cell = tf.contrib.rnn.DropoutWrapper(
                     tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+                    input_keep_prob=self.input_keep_prob,
+                    output_keep_prob=self.output_keep_prob
+                )
+            else:
+                # TODO LSTM fix
+                self.rnn_cell = tf.contrib.rnn.DropoutWrapper(
+                    tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
                     input_keep_prob=self.input_keep_prob,
                     output_keep_prob=self.output_keep_prob
                 )
