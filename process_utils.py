@@ -27,6 +27,22 @@ def clean_str(string, TREC=False):
     return string.strip() if TREC else string.strip().lower()
 
 
+def tokenizer(iterator):
+    """Tokenizer generator.
+    got it from  tf vacab processor
+    https://github.com/tensorflow/tensorflow/blob/754048a0453a04a761e112ae5d99c149eb9910dd/tensorflow/contrib/learn/python/learn/preprocessing/text.py 
+    essentially the same, it just doesnt remove punctuation from the sentence
+    Args:
+    iterator: Input iterator with strings.
+    Yields:
+    array of tokens per each value in the input.
+    """
+    TOKENIZER_RE = re.compile(
+        r"[A-Z]{2,}(?![a-z])|[A-Z][a-z]+(?=[A-Z])|[\'\w\-]+|\S", re.UNICODE)
+    for value in iterator:
+        yield TOKENIZER_RE.findall(value)
+
+
 def clean_str_sst(string):
     """
     Tokenization/string cleaning for the SST dataset

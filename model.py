@@ -75,11 +75,11 @@ class RNN(object):
             #     initializer=tf.random_uniform_initializer(-1.0, 1.0)
 
             # )
-            self.w_embeddings = tf.Variable(
-                tf.truncated_normal([self.n_words, self.dim_proj],
-                                    stddev=0.01),
-                name="W_embeddings")
-            index_ = 0
+            # self.w_embeddings = tf.Variable(
+            #     tf.truncated_normal([self.n_words, self.dim_proj],
+            #                         stddev=0.01),
+            #     name="W_embeddings")
+            index_ = 0 # curently using only a single type of word embeddings
             self.w_embeddings = tf.get_variable(
                 "W0_" + str(index_),
                 shape=[self.n_words, self.dim_proj],
@@ -163,6 +163,7 @@ class RNN(object):
                 )
                 if config["GRU"]:
                     self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
+                    # self.output = state_fw[-1] + state_bw[-1]
                     # self.output = output[-1]
                 else:  # LSTM
                     self.output = tf.concat(
@@ -282,13 +283,15 @@ class RNN(object):
                 # shape = [tf.shape(self.state_)[1], self.num_classes]
                 # shape = [self.times * self.dim_proj, self.num_classes]
                 # shape = [self.sentence_len, self.num_classes]
-                
+
                 shape = [int(self.state_.shape[1]), self.num_classes]
                 # hidden_layer_dim = 150
                 # shape = [int(self.state_.shape[1]), hidden_layer_dim]
-                W = tf.Variable(
-                    tf.truncated_normal(shape, stddev=0.01), name="W",
-                )
+                # W = tf.Variable(
+                #     tf.truncated_normal(shape, stddev=0.01), name="W",
+                # )
+
+                W = self.xavier_init(shape, "W")
                 b = tf.Variable(tf.constant(
                     0.1, shape=[self.num_classes]),
                     trainable=True, name="b"
@@ -345,6 +348,35 @@ class RNN(object):
         #     self.str_summary_type), self.accuracy)
         # self.merged = tf.merge_summary([self.mean_loss, acc_summ])
     # self.saver = tf.train.Saver(tf.globa())
+
+    def xavier_init(self, shape_, var_name):
+        '''initialize a variable using xavier initialization
+        '''
+        return tf.get_variable(
+            var_name, shape=shape_,
+            initializer=tf.contrib.layers.xavier_initializer()
+        )
+
+
+    def fc_layer(self, input_, num_layers, shapes, id_=0):
+        """declare a fully connected network
+        with num_layers <layers> each of shape <shapes>
+        """
+        with tf.name_scope("fully_conected_layer_" + str(id_)):
+            final_output = None
+            for layer in range(num_layers):
+                weight_shape = shapes[layer]
+                W = self.xavier_init(
+                    weight_shape, "W_fc_{}_{}".format(id_, layer))
+                b = tf.Variable(tf.constant(
+                    0.1, shape=[weight_shape[1]]),
+                    trainable=True, name="b_fc_{}_{}".format(id_, layer)
+                )
+                final_output = tf.nn.xw_plus_b(input_, W, b)
+                if num_layers - layer - 1 > 0:
+                    # if not on last layer apply non linearity
+                    input_ = tf.nn.relu(final_output)
+            return final_output
 
     def summarize(self, config):
         # out_dir = config['out_dir']

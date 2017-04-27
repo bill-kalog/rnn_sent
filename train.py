@@ -14,6 +14,7 @@ import sys
 import json
 import operator
 import pandas as pd
+import re
 
 
 def init_vocabulary_processor(dx_train, dx_dev):
@@ -26,7 +27,7 @@ def init_vocabulary_processor(dx_train, dx_dev):
     if max_document_length > 100:
         max_document_length = 100
     vocab_processor = learn.preprocessing.VocabularyProcessor(
-        max_document_length)
+        max_document_length, tokenizer_fn=process_utils.tokenizer)
     vocab_processor.fit(dx_train)
     x_train = np.array(list(vocab_processor.transform(dx_train)))
     x_dev = np.array(list(vocab_processor.transform(dx_dev)))
