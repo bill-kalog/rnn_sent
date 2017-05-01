@@ -28,6 +28,9 @@ config = {
     # 'keep_prob_inp': 1.,
     # 'keep_prob_out': 1.,
 
+    # DMN
+    'episodes_num': 2,  # number of episodes in episodic module
+
     'evaluate_every': 5,  # evaluate on dev set
 
     'save_step': 800,

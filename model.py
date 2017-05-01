@@ -357,7 +357,6 @@ class RNN(object):
             initializer=tf.contrib.layers.xavier_initializer()
         )
 
-
     def fc_layer(self, input_, num_layers, shapes, id_=0):
         """declare a fully connected network
         with num_layers <layers> each of shape <shapes>
@@ -492,7 +491,7 @@ class RNN_Attention(object):
                 self.rnn_cell = tf.contrib.rnn.DropoutWrapper(
                     tf.contrib.rnn.LSTMCell(num_units=self.dim_proj),
                     input_keep_prob=self.input_keep_prob,
-                    output_keep_prob=self.output_keep_prob
+                    output_keep_prob=self.output_keep_prob,
                 )
 
         # create sequential rnn from single cells
@@ -602,8 +601,12 @@ class RNN_Attention(object):
             print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
 
             # initialize tensors, (size doesn't matter)
-            a_list = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="representations")
-            list_scores = tf.Variable(tf.truncated_normal([1, self.dim_proj]), name="attention_scores")
+            a_list = tf.Variable(
+                tf.truncated_normal(
+                    [1, self.dim_proj]), name="representations")
+            list_scores = tf.Variable(
+                tf.truncated_normal(
+                    [1, self.dim_proj]), name="attention_scores")
             i = tf.constant(0)
 
             def condition(i, a_list, list_scores):
@@ -612,12 +615,14 @@ class RNN_Attention(object):
 
             def body(i, a_list, list_scores):
                 up_to = self.seq_lengths[i]
-                
-                temp_slice = tf.slice(self.unormalized_att_scores, [i, 0], [1, up_to])
+
+                temp_slice = tf.slice(
+                    self.unormalized_att_scores, [i, 0], [1, up_to])
                 softmax_ = tf.nn.softmax(temp_slice)
 
                 attention_scores_exp = tf.expand_dims(softmax_, 2)
-                temp_slice_input = tf.slice(self.attention_input, [i, 0, 0], [1, up_to, -1])
+                temp_slice_input = tf.slice(
+                    self.attention_input, [i, 0, 0], [1, up_to, -1])
                 repr_ = tf.multiply(temp_slice_input, attention_scores_exp)
                 sent_repr_ = tf.reduce_sum(repr_, 1)
 

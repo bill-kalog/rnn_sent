@@ -99,7 +99,7 @@ class DMN(object):
                 initial_state=initial_state,
                 sequence_length=self.seq_lengths
             )
-            self.out_state = state
+            # self.out_state = state
             self.output = output
 
     def question_module(self):
@@ -128,14 +128,17 @@ class DMN(object):
                 initial_state=initial_state,
                 sequence_length=self.seq_lengths_q
             )
-            self.output_q = state
+            self.output_q = state[-1]
 
     def episodic_module(self):
         """takes the final state of question module
         and the sequence of outputs of our encoder
-        and produces 'memories' using an rnn. 
+        and produces 'memories' using an rnn.
         uses attention over the encoders' states
         """
+        with tf.name_scope("episodic_module"):
+            for i in range(self.config["episodes_num"]):
+                pass
         rnn_cell = ""  # TODO
         # initial state is the question vector
         initial_state = self.output_q
@@ -159,12 +162,117 @@ class DMN(object):
             )
             self.scores = tf.nn.xw_plus_b(self.last_memory, W, b)
 
+    def attention(self, facts, question, prev_memory):
+        ''' calculate the attention distribution for a batch of sentences
+        using a combination of our facts, the question and the previous episode
+        '''
 
-    def attention(self):
-        pass
+        g_tensor = tf.Variable(tf.truncated_normal(
+            [1, self.dim_proj]), name="g_scores")
+        i = tf.constant(0)
+        with tf.name_scope("attention_mechanism", reuse=True):
+            with tf.name_scope("attention_gates"):
 
-    def memory(self):
-        pass
+                def condition(i, g_tensor):
+                    return tf.less(i, self.batch_size)
+
+                def body(i, g_tensor):
+                    up_to = self.seq_lengths[i]
+                    # get facts of a single instance from batch
+                    fact = tf.slice(
+                        self.facts, [i, 0, 0], [1, up_to, -1])
+                    fact = tf.reshape(fact, [up_to, -1])
+                    # calculate z_i
+                    z_i = [tf.multiply(fact, question),
+                           tf.multiply(fact, prev_memory),
+                           tf.abs(fact - question),
+                           tf.abs(fact - prev_memory)]
+                    z_i_c = tf.concat(z_i, 1)
+
+                    # calculate attention values
+                    w_1_dim = 256
+                    hidden_z_shape = [int(z_i_c.shape[1]), w_1_dim]
+                    W_1 = tf.get__variable(
+                        "att_weight_1", shape=hidden_z_shape,
+                        initializer=tf.contrib.layers.xavier_initializer()
+                    )
+                    b_1 = tf.Variable(tf.constant(
+                        0.1, shape=[w_1_dim]), name="att_bias_1")
+                    inter = tf.nn.tanh(
+                        tf.nn.xw_plus_b(z_i_c, W_1, b_1)
+                    )
+
+                    W_2 = tf.get_variable(
+                        "att_weight_2", shape=[w_1_dim, self.seq_length],
+                        initializer=tf.contrib.layers.xavier_initializer()
+                    )
+                    b_2 = tf.Variable(tf.constant(
+                        0.1, shape=[self.seq_length]), name="att_bias_2")
+
+                    # need to slice b2 and w_2 to much instance i seq_length
+                    unorm_att = tf.nn.xw_plus_b(
+                        inter, tf.slice(W_2, [0, 0], [-1, up_to]),
+                        tf.slice(b_2, [0], [up_to]))
+
+                    # softmax values g_i
+                    g_i = tf.nn.softmax(unorm_att)
+                    # zero pad attentions to fit in tensor
+                    paddings = [[0, 0],
+                                [0, self.sentence_len - self.seq_lengths[i]]]
+                    padded_g_i = tf.pad(g_i, paddings, "padded_g_i")
+
+                    g_tensor = tf.cond(
+                        tf.equal(i, 0), lambda: padded_g_i, lambda: tf.concat(
+                            [g_tensor, padded_g_i], axis=0)
+                    )
+
+                    i = tf.add(i, 1)
+                    return [i, g_tensor]
+
+                _, g_tensor = tf.while_loop(
+                    condition, body, [i, g_tensor],
+                    shape_invariants=[i.get_shape(),
+                                      tf.TensorShape([None, None])]
+                )
+            with tf.name_scope("attention_GRU"):
+                """ takes a zero padded attention tensor, and calculates
+                using a gru the c_t vectors
+                """
+                sentence_repr = []
+                # TODO
+                return sentence_repr
+
+    def memory_update(self, prev_memory, c_t, question):
+        with tf.name_scope("memory_update", reuse=False):
+            # memory update based on
+            # Sukhbaatar et al. (2015) and Peng et al. (2015)
+            # m^t = ReLU(Wt[m^{t−1}; c^t; q]+b)
+            # using untied weights
+            input_ = [prev_memory, c_t, question]
+            c_input = tf.concat(input_, 1)
+            W = tf.get_variable(
+                "w_mem_update", shape=[int(c_input.shape[1]), self.dim_proj],
+                initializer=tf.contrib.layers.xavier_initializer())
+            b = tf.Variable(tf.constant(0.1, shape=[self.dim_proj]),
+                            name="b_mem_update")
+            new_memory = tf.nn.relu(
+                tf.nn.xw_plus_b(c_input, W, b))
+
+            return new_memory
+
+            # 'half' finished gru memory update
+            # cell = tf.contrib.rnn.DropoutWrapper(
+            #     tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+            #     input_keep_prob=self.input_keep_prob,
+            #     output_keep_prob=self.output_keep_prob
+            # )
+            # mem_up_input = []
+            # _, new_episode = tf.nn.dynamic_rnn(
+            #     cell=cell,
+            #     inputs=mem_up_input,
+            #     initial_state=prev_memory,
+            #     sequence_length=self.seq_length
+            # )
 
     def train(self):
         """ calculate accuracies, train and predict """
