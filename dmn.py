@@ -3,6 +3,7 @@ import numpy as np
 from math import ceil
 import sys
 import os
+from attention_cell import AttentionBasedGRUCell
 
 
 class DMN(object):
@@ -17,8 +18,6 @@ class DMN(object):
         self.word_vectors = word_vectors
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
         self.config = config
-        # self.str_summary_type = tf.placeholder(
-        #     tf.string, name="str_summary_type")
         self.input_keep_prob = tf.placeholder(
             tf.float32, name="keep_prob_inp")
         self.output_keep_prob = tf.placeholder(
@@ -37,11 +36,14 @@ class DMN(object):
         self.metrics_weight = tf.placeholder(tf.float32, name="metrics_weight")
         self.fixed_acc_value = tf.placeholder(tf.float32, name="f_acc_value")
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
+        self.all_attentions = []
 
         self.build_input()
         self.encoder()
         self.question_module()
-        # self.attention()
+        self.episodic_module()
+        self.answer_module()
+
         self.train()
         self.summarize()
 
@@ -74,6 +76,8 @@ class DMN(object):
                     input_keep_prob=self.input_keep_prob,
                     output_keep_prob=self.output_keep_prob
                 )
+            else:
+                raise ValueError("Currently only support GRU cell, change config")
         # create sequential rnn from single cells
         rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
             [self.rnn_cell] * self.layers, state_is_tuple=True)
@@ -115,8 +119,8 @@ class DMN(object):
             # create sequential rnn from single cells
             rnn_cell = tf.contrib.rnn.DropoutWrapper(
                 tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
-                # input_keep_prob=self.input_keep_prob,
-                # output_keep_prob=self.output_keep_prob
+                input_keep_prob=1.0,
+                output_keep_prob=1.0
             )
             rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
                 [rnn_cell] * 1, state_is_tuple=True)
@@ -137,13 +141,13 @@ class DMN(object):
         uses attention over the encoders' states
         """
         with tf.name_scope("episodic_module"):
+            memory = self.output_q
             for i in range(self.config["episodes_num"]):
-                pass
-        rnn_cell = ""  # TODO
-        # initial state is the question vector
-        initial_state = self.output_q
-        rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
-            [rnn_cell] * 1, state_is_tuple=True)
+                # calc new sentence representations
+                c_t = self.attention(self.output, self.output_q, memory)
+                # update memory
+                memory = self.memory_update(memory, c_t, self.output_q)
+            self.last_memory = memory
 
     def answer_module(self):
         """take the final state/episode of episodic module  and
@@ -188,6 +192,7 @@ class DMN(object):
                            tf.abs(fact - question),
                            tf.abs(fact - prev_memory)]
                     z_i_c = tf.concat(z_i, 1)
+                    print ("z_i_c = {}".format(z_i_c.shape))
 
                     # calculate attention values
                     w_1_dim = 256
@@ -203,17 +208,17 @@ class DMN(object):
                     )
 
                     W_2 = tf.get_variable(
-                        "att_weight_2", shape=[w_1_dim, self.seq_length],
+                        "att_weight_2", shape=[w_1_dim, 1],
                         initializer=tf.contrib.layers.xavier_initializer()
                     )
                     b_2 = tf.Variable(tf.constant(
-                        0.1, shape=[self.seq_length]), name="att_bias_2")
+                        0.1, shape=[1]), name="att_bias_2")
 
-                    # need to slice b2 and w_2 to much instance i seq_length
-                    unorm_att = tf.nn.xw_plus_b(
-                        inter, tf.slice(W_2, [0, 0], [-1, up_to]),
-                        tf.slice(b_2, [0], [up_to]))
-
+                    # slice b2 and w_2 to much instance i seq_length (WRONG)
+                    # unorm_att = tf.nn.xw_plus_b(
+                    #     inter, tf.slice(W_2, [0, 0], [-1, up_to]),
+                    #     tf.slice(b_2, [0], [up_to]))
+                    unorm_att = tf.nn.xw_plus_b(inter, W_2, b_2)
                     # softmax values g_i
                     g_i = tf.nn.softmax(unorm_att)
                     # zero pad attentions to fit in tensor
@@ -234,13 +239,30 @@ class DMN(object):
                     shape_invariants=[i.get_shape(),
                                       tf.TensorShape([None, None])]
                 )
+                self.all_attentions.append(g_tensor)
             with tf.name_scope("attention_GRU"):
                 """ takes a zero padded attention tensor, and calculates
-                using a gru the c_t vectors
+                using a gru the c_t vectors (i.e sentence representations)
                 """
-                sentence_repr = []
-                # TODO
-                return sentence_repr
+                # c_t = []
+                # inputs to gru, take last attention distribution
+                inputs = tf.concat([facts, self.all_attentions[-1]])
+                print ("inputs {} shape {}".format(inputs, inputs.shape))
+                attention_cell = tf.contrib.rnn.DropoutWrapper(
+                    AttentionBasedGRUCell(num_units=self.dim_proj),
+                    input_keep_prob=self.input_keep_prob,
+                    output_keep_prob=self.output_keep_prob
+                )
+                rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                    [attention_cell] * 1, state_is_tuple=True)
+                initial_state = rnn_cell_seq.zero_state(
+                    self.batch_size, tf.float32)
+                _, c_t = tf.nn.dynamic_rnn(
+                    inputs=inputs, cell=rnn_cell_seq,
+                    sequence_length=self.seq_lengths,
+                    initial_state=initial_state)
+
+                return c_t
 
     def memory_update(self, prev_memory, c_t, question):
         with tf.name_scope("memory_update", reuse=False):
@@ -260,7 +282,7 @@ class DMN(object):
 
             return new_memory
 
-            # 'half' finished gru memory update
+            # way less than 'half' finished gru memory update
             # cell = tf.contrib.rnn.DropoutWrapper(
             #     tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
             #     input_keep_prob=self.input_keep_prob,
@@ -292,7 +314,7 @@ class DMN(object):
                 tf.cast(self.correct_predictions, "float"), name="accuracy")
 
         params = tf.trainable_variables()
-        # if self.train_phase:
+
         with tf.name_scope("train"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
         gradients = tf.gradients(self.mean_loss, params)

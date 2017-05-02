@@ -8,3 +8,5 @@ and [Feed-Forward Networks with Attention Can Solve Some Long-Term Memory Proble
 
 **TODO** Implemetation of [Ask Me Anything: Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/abs/1506.07285) 
 
+attention cell architectures is based on code from (barronalex)[https://github.com/barronalex/Dynamic-Memory-Networks-in-TensorFlow]
+
