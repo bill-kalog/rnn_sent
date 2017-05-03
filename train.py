@@ -86,8 +86,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
     if config['dmn']:
         network = DMN(config, word_embd_tensor)
-        string_question = "what is the sentiment ?"
-        question = np.array(vc_processsor.transform(string_question))
+        string_question = ["what is the sentiment ?"]
+        question = np.array(list(vc_processsor.transform(string_question)))
     elif config["use_attention"]:
         network = RNN_Attention(config, word_embd_tensor)
         question = None
@@ -297,6 +297,14 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             }
             # network.setBatchSize(len(x_batch))
         else:
+            # print (question, question.shape)
+            # have the exact same question for all batch
+            mult_quest = np.reshape(np.repeat(
+                question.T, len(x_batch), axis=0),
+                [config['sentence_len'], len(x_batch)]).T
+
+            # print ("mult quest: {}".format(mult_quest))
+            # print (" shape {}".format(mult_quest.shape))
             feed_dict = {
                 network.x: x_batch,
                 network.y: y_batch,
@@ -307,7 +315,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 network.metrics_weight: reg_metrics[0],
                 network.fixed_acc_value: reg_metrics[1],
                 network.fixed_loss_value: reg_metrics[2],
-                network.question: question
+                network.question: mult_quest
             }
         #     network.setBatchSize(len(x_batch))
         # print ("New batch size {}".format(network.batch_size))
@@ -338,9 +346,23 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
                 # output_ = [network.predictions, network.true_predictions,
                 #            network.probs, network.state_]
-                output_ = [network.attention_scores, network.seq_lengths]
-                scores, seq_lengths = sess.run(
-                    output_, feed_dict)
+                if config["dmn"]:
+                    output_ = [network.all_attentions, network.seq_lengths, network.a]
+                    scores, seq_lengths, a = sess.run(
+                        output_, feed_dict)
+                    # print (scores)
+                    # print (scores[0].shape)
+                    # print (len(scores))
+                    # print ("---------------------------")
+                    # # print (scores[1])
+                    # print (a, a.shape)
+                    # for cc in range(100):
+                    #     print(np.sum(scores[0][cc][:]), seq_lengths[cc])
+                    # sys.exit()
+                else:
+                    output_ = [network.attention_scores, network.seq_lengths]
+                    scores, seq_lengths = sess.run(
+                        output_, feed_dict)
                 scores_list += scores.tolist()
                 # print ("seqeunce len ------------", scores, scores.tolist())
                 seq_length_list += seq_lengths.tolist()

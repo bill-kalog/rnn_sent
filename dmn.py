@@ -148,7 +148,7 @@ class DMN(object):
                 # calc new sentence representations
                 c_t = self.attention(self.output, self.output_q, memory, i)
                 # update memory
-                memory = self.memory_update(memory, c_t, self.output_q)
+                memory = self.memory_update(memory, c_t, self.output_q, i)
             self.last_memory = memory
 
     def answer_module(self):
@@ -158,6 +158,7 @@ class DMN(object):
         with tf.name_scope("answer_module"):
             # initial state is the last memory
             # initial_state = self.last_memory
+            self.state_ = self.last_memory
             shape = [int(self.last_memory.shape[1]), self.num_classes]
             W = tf.Variable(
                 tf.truncated_normal(shape, stddev=0.01), name="W_answer",
@@ -166,7 +167,7 @@ class DMN(object):
                 0.1, shape=[self.num_classes]),
                 trainable=True, name="b_answer"
             )
-            self.scores = tf.nn.xw_plus_b(self.last_memory, W, b)
+            self.scores = tf.nn.xw_plus_b(self.state_, W, b)
 
     def attention(self, facts, question, prev_memory, ep_number):
         ''' calculate the attention distribution for a batch of sentences
@@ -180,6 +181,7 @@ class DMN(object):
         with tf.variable_scope("attention_mechanism", reuse=reuse):
             # declare weights for attention
             w_1_dim = 256
+            # TODO: fix dimensions for bidirectional ??
             hidden_z_shape = [self.dim_proj * 4, w_1_dim]
             W_1 = tf.get_variable(
                 "att_weight_1", shape=hidden_z_shape,
@@ -204,14 +206,23 @@ class DMN(object):
                     # get facts of a single instance from batch
                     fact = tf.slice(
                         self.output, [i, 0, 0], [1, up_to, -1])
+
                     fact = tf.reshape(fact, [up_to, -1])
+
+                    question_for_fact = tf.slice(question, [i, 0], [1, -1])
+                    prev_memory_for_fact = tf.slice(
+                        prev_memory, [i, 0], [1, -1])
                     # calculate z_i
-                    z_i = [tf.multiply(fact, question),
-                           tf.multiply(fact, prev_memory),
-                           tf.abs(fact - question),
-                           tf.abs(fact - prev_memory)]
+                    print (
+                        "fact {}\n quesiton {}\n prev memory {}\n".format(fact.shape, question.shape, prev_memory.shape))
+                    z_i = [tf.multiply(fact, question_for_fact),
+                           tf.multiply(fact, prev_memory_for_fact),
+                           tf.abs(fact - question_for_fact),
+                           tf.abs(fact - prev_memory_for_fact)]
                     z_i_c = tf.concat(z_i, 1)
                     print ("z_i_c = {}".format(z_i_c.shape))
+                    # self.a = z_i_c
+
 
                     # # calculate attention values
                     # w_1_dim = 256
@@ -240,12 +251,15 @@ class DMN(object):
                     unorm_att = tf.nn.xw_plus_b(inter, W_2, b_2)
 
                     # softmax values g_i
-                    g_i = tf.nn.softmax(unorm_att)
+                    print (unorm_att)
+                    g_i = tf.nn.softmax(tf.transpose(unorm_att))
+                    print ("G_I ", g_i)
                     # zero pad attentions to fit in tensor
                     paddings = [[0, 0],
-                                [0, self.sentence_len - self.seq_lengths[i]]]
+                                [0, self.sentence_len - self.seq_lengths[i] ]]
                     padded_g_i = tf.pad(g_i, paddings, "CONSTANT")
-
+                    print ("Padded G I", padded_g_i)
+                    padded_g_i = tf.reshape(padded_g_i, [1, -1])
                     g_tensor = tf.cond(
                         tf.equal(i, 0), lambda: padded_g_i, lambda: tf.concat(
                             [g_tensor, padded_g_i], axis=0)
@@ -260,6 +274,7 @@ class DMN(object):
                                       tf.TensorShape([None, None])]
                 )
                 g_tensor = tf.reshape(g_tensor, [-1, self.sentence_len])
+                self.a = g_tensor
                 print ("g_tensor: {}".format(g_tensor.shape))
                 self.all_attentions.append(tf.expand_dims(g_tensor, axis=-1))
             with tf.name_scope("attention_GRU"):
@@ -287,22 +302,24 @@ class DMN(object):
                 print ("sentencre represenattoins c_t {}".format(c_t[-1].shape))
                 return c_t[-1]
 
-    def memory_update(self, prev_memory, c_t, question):
+    def memory_update(self, prev_memory, c_t, question, ep_number):
         with tf.name_scope("memory_update"):
             # memory update based on
             # Sukhbaatar et al. (2015) and Peng et al. (2015)
             # m^t = ReLU(Wt[m^{t−1}; c^t; q]+b)
             # using untied weights
+            # with tf.variable_scope("memory_in", reuse=False):
             input_ = [prev_memory, c_t, question]
             c_input = tf.concat(input_, 1)
             W = tf.get_variable(
-                "w_mem_update", shape=[int(c_input.shape[1]), self.dim_proj],
+                "w_mem_update_{}".format(ep_number),
+                shape=[int(c_input.shape[1]), self.dim_proj],
                 initializer=tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.1, shape=[self.dim_proj]),
-                            name="b_mem_update")
+                            name="b_mem_update_{}".format(ep_number))
             new_memory = tf.nn.relu(
                 tf.nn.xw_plus_b(c_input, W, b))
-
+            print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
             return new_memory
 
             # way less than 'half' finished gru memory update
@@ -321,6 +338,7 @@ class DMN(object):
 
     def train(self):
         """ calculate accuracies, train and predict """
+        print ("scores {}".format(self.scores.shape))
         with tf.name_scope("predict"):
             self.predictions = tf.argmax(self.scores, 1)
             self.true_predictions = tf.argmax(self.y, 1)

@@ -31,10 +31,10 @@ config = {
     # DMN
     'episodes_num': 2,  # number of episodes in episodic module
 
-    'evaluate_every': 5,  # evaluate on dev set
+    'evaluate_every': 20,  # evaluate on dev set
 
     'save_step': 800,
-    'save_step_dev_info': 800,
+    'save_step_dev_info': 2000,
 
     # word embeddings args
     'std_dev': 0.01,  # variance
