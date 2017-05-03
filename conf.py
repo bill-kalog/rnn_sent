@@ -4,10 +4,10 @@ config = {
     'dat_directory': '../datasets',
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
-    'dmn': False,  # use a dynamic memory network
+    'dmn': True,  # use a dynamic memory network
 
-    'bidirectional': True,  # bidirectional rnn or not
-    'GRU': False,  # chose between GRU or LSTM, seems to work
+    'bidirectional': False,  # bidirectional rnn or not
+    'GRU': True,  # chose between GRU or LSTM, seems to work
     'pooling': False,  # choose between avg pooling or fc layer in the end
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN ** BROKEN DOESN'T USE **
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
