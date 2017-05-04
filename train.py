@@ -191,12 +191,13 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             dev_step(x_dev, y_dev)
 
         if current_step in config['save_step_dev_info']:
-            save_dev_summary(
-                x_dev, y_dev, dx_dev,
-                "metrics_step_{}.pkl".format(current_step))
-            save_dev_summary(
-                x_train, y_train, dx_train,
-                "metrics_train_step_{}.pkl".format(current_step))
+            if config['classes_num'] == 2:  # plots work only for binary 
+                save_dev_summary(
+                    x_dev, y_dev, dx_dev,
+                    "metrics_step_{}.pkl".format(current_step))
+                save_dev_summary(
+                    x_train, y_train, dx_train,
+                    "metrics_train_step_{}.pkl".format(current_step))
             if config["use_attention"]:
                 get_attention_weights(
                     x_dev, y_dev, dx_dev,
@@ -212,6 +213,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             acc_sum = 0
             loss_sum = 0
             for i in range(0, len(x_batch), mini_size):
+                print ("{}-{}".format(i, len(x_batch)))
                 if (i + mini_size < len(x_batch)):
                     mini_x_batch = x_batch[i:i + mini_size]
                     mini_y_batch = y_batch[i:i + mini_size]
@@ -223,6 +225,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 feed_dict = make_feed_dict(
                     mini_x_batch, mini_y_batch,
                     dropouts, reg_metrics, question)
+
+                ot_1 = [network.output, network.seq_lengths]
+                out, seq_lens = sess.run(ot_1, feed_dict)
 
                 output_ = [network.global_step, network.accuracy,
                            network.mean_loss]

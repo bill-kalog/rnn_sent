@@ -203,7 +203,14 @@ class DMN(object):
 
                 def body(i, g_tensor):
                     up_to = self.seq_lengths[i]
-                    # get facts of a single instance from batch
+                    # if sentence was full with <unk> 
+                    # (i.e seq_lengths[i] == 0) just take a vector of zeros
+                    # as fact representation
+                    up_to = tf.cond(
+                        tf.equal(up_to, 0), lambda: tf.constant(1),
+                        lambda: up_to
+                    )
+
                     fact = tf.slice(
                         self.output, [i, 0, 0], [1, up_to, -1])
 
@@ -225,24 +232,10 @@ class DMN(object):
 
 
                     # # calculate attention values
-                    # w_1_dim = 256
-                    # hidden_z_shape = [int(z_i_c.shape[1]), w_1_dim]
-                    # W_1 = tf.get_variable(
-                    #     "att_weight_1", shape=hidden_z_shape,
-                    #     initializer=tf.contrib.layers.xavier_initializer()
-                    # )
-                    # b_1 = tf.Variable(tf.constant(
-                    #     0.1, shape=[w_1_dim]), name="att_bias_1")
                     inter = tf.nn.tanh(
                         tf.nn.xw_plus_b(z_i_c, W_1, b_1)
                     )
 
-                    # W_2 = tf.get_variable(
-                    #     "att_weight_2", shape=[w_1_dim, 1],
-                    #     initializer=tf.contrib.layers.xavier_initializer()
-                    # )
-                    # b_2 = tf.Variable(tf.constant(
-                    #     0.1, shape=[1]), name="att_bias_2")
 
                     # slice b2 and w_2 to much instance i seq_length (WRONG)
                     # unorm_att = tf.nn.xw_plus_b(
@@ -256,7 +249,7 @@ class DMN(object):
                     print ("G_I ", g_i)
                     # zero pad attentions to fit in tensor
                     paddings = [[0, 0],
-                                [0, self.sentence_len - self.seq_lengths[i] ]]
+                                [0, self.sentence_len - up_to]]
                     padded_g_i = tf.pad(g_i, paddings, "CONSTANT")
                     print ("Padded G I", padded_g_i)
                     padded_g_i = tf.reshape(padded_g_i, [1, -1])

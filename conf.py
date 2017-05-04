@@ -29,12 +29,13 @@ config = {
     # 'keep_prob_out': 1.,
 
     # DMN
-    'episodes_num': 2,  # number of episodes in episodic module
+    'episodes_num': 3,  # number of episodes in episodic module
 
     'evaluate_every': 20,  # evaluate on dev set
 
-    'save_step': 800,
-    'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000],
+    'save_step': 800,  # save word embeddings
+    'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000, 4000],
+    # 'save_step_dev_info': [1500, 2000, 4000],
 
     # word embeddings args
     'std_dev': 0.01,  # variance
