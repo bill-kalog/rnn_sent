@@ -24,6 +24,13 @@ for index, type_ in enumerate(config['word_vector_type']):
 data = dataset.cv_split(index=2)
 # # data = dataset.cv_split(index=5)
 
+# SST splits (take only train and test)
+t1 = dataset.cv_split(index=2)
+t2 = dataset.cv_split(index=1)
+data = [t2[2], t2[3], t1[2], t1[3]]
+# print (len(data[0]), len(data[2]), len(data[1]), len(data[3]))
+# sys.exit()
+
 
 # dataset_1 = Dataset("MR", preprocess=True)
 # sp_1 = dataset_1.cv_split(index=5)

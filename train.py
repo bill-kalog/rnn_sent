@@ -167,25 +167,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
             # sys.exit(0)
 
-
-            # get_ = [network.r, network.a_list, network.z_, network.seq_lengths]
-            # r, a_list, out_st_, z_ = sess.run(
-            #     get_, feed_dict)
-            # print (r)
-            # print (a_list)
-            # print (z_)
-            # sys.exit(0)
-
-            # get_ = [network.update, network.r, network.a_list, network.z_, network.seq_lengths, network.unormalized_att_scores]
-            # _, r, a_list,  z_, out_st_, un_scores = sess.run(
-            #     get_, feed_dict)
-            # print ("R values: {} R shape: {}".format(r, r.shape))
-            # print ("a_list values: {} a_list shape: {}".format(a_list, a_list.shape))
-            # print ("Z ", z_)
-            # print (" unrome scores {}".format(un_scores[0]))
-            # print ("sequence lengths: {}".format(out_st_))
-            # print ("summation of Z {} shape {}".format(np.sum(z_), z_.shape))
-            # sys.exit(0)
             
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
@@ -208,13 +189,21 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         # grad_summaries_writer.add_summary(grad_summary, step)
         if current_step % config['evaluate_every'] == 0:
             dev_step(x_dev, y_dev)
-        if current_step == config['save_step_dev_info']:
-            save_dev_summary(x_dev, y_dev, dx_dev, "metrics.pkl")
-            save_dev_summary(x_train, y_train, dx_train, "metrics_train.pkl")
+
+        if current_step in config['save_step_dev_info']:
+            save_dev_summary(
+                x_dev, y_dev, dx_dev,
+                "metrics_step_{}.pkl".format(current_step))
+            save_dev_summary(
+                x_train, y_train, dx_train,
+                "metrics_train_step_{}.pkl".format(current_step))
             if config["use_attention"]:
-                get_attention_weights(x_dev, y_dev, dx_dev, "attention")
                 get_attention_weights(
-                    x_train, y_train, dx_train, "attention_train")
+                    x_dev, y_dev, dx_dev,
+                    "attention_step_{}".format(current_step))
+                get_attention_weights(
+                    x_train, y_train, dx_train,
+                    "attention_train_step_{}".format(current_step))
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -347,25 +336,43 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 # output_ = [network.predictions, network.true_predictions,
                 #            network.probs, network.state_]
                 if config["dmn"]:
-                    output_ = [network.all_attentions, network.seq_lengths, network.a]
-                    scores, seq_lengths, a = sess.run(
+                    num_episodes = config['episodes_num']
+                    output_ = [network.all_attentions, network.seq_lengths]
+                    scores, seq_lengths = sess.run(
                         output_, feed_dict)
-                    # print (scores)
-                    # print (scores[0].shape)
-                    # print (len(scores))
+
+                    sentences_in_batch = []
+                    for i in range(len(mini_x_batch)):
+                        sentence_scores = []
+                        for k in range(config['sentence_len']):
+                            attentions = [float(scores[j][i][k][0])
+                                    for j in range(num_episodes)]
+                            sentence_scores.append(attentions)
+                        sentences_in_batch.append(sentence_scores)
+                    
                     # print ("---------------------------")
-                    # # print (scores[1])
+                    # print (len(sentences_in_batch))
+                    # print (sentences_in_batch[0])
+                    # print (len(sentences_in_batch[0]))
+                    # print (len(sentences_in_batch), len(sentences_in_batch[0]), len(sentences_in_batch[0][0]))
+                    # print (scores_combo[1])
+                    # print (scores[1])
                     # print (a, a.shape)
                     # for cc in range(100):
                     #     print(np.sum(scores[0][cc][:]), seq_lengths[cc])
+                    scores_list += sentences_in_batch
+
                     # sys.exit()
                 else:
                     output_ = [network.attention_scores, network.seq_lengths]
                     scores, seq_lengths = sess.run(
                         output_, feed_dict)
-                scores_list += scores.tolist()
+                    scores_list += scores.tolist()
                 # print ("seqeunce len ------------", scores, scores.tolist())
                 seq_length_list += seq_lengths.tolist()
+            # print (len(scores_list))
+            # print (len(seq_length_list))
+            # sys.exit()
 
         else:
             print (
@@ -400,7 +407,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     break
                 temp.append(
                     (word, scores_list[i][index_]))
-                sum_ += scores_list[i][index_]
+                sum_ += np.sum(scores_list[i][index_])
                 # store word probabilities
                 if word not in word_to_id:
                     word_id += 1
@@ -408,7 +415,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 word_id_to_occ_num[word_to_id[word]] = word_id_to_occ_num.get(
                     word_to_id[word], 0) + 1
                 word_id_to_prob_sum[word_to_id[word]] = word_id_to_prob_sum.get(
-                    word_to_id[word], 0.0) + float(scores_list[i][index_])
+                    word_to_id[word], 0.0) + np.sum(scores_list[i][index_])
 
             dic_['sent_id_' + str(i)] = {
                 "mappings": temp,

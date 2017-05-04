@@ -274,7 +274,7 @@ class DMN(object):
                                       tf.TensorShape([None, None])]
                 )
                 g_tensor = tf.reshape(g_tensor, [-1, self.sentence_len])
-                self.a = g_tensor
+                # self.a = g_tensor
                 print ("g_tensor: {}".format(g_tensor.shape))
                 self.all_attentions.append(tf.expand_dims(g_tensor, axis=-1))
             with tf.name_scope("attention_GRU"):

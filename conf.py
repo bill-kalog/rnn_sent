@@ -34,7 +34,7 @@ config = {
     'evaluate_every': 20,  # evaluate on dev set
 
     'save_step': 800,
-    'save_step_dev_info': 2000,
+    'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000],
 
     # word embeddings args
     'std_dev': 0.01,  # variance
@@ -47,8 +47,8 @@ config = {
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
     # random vectors only
-    # 'train_embeddings': [True],
-    # 'word_vector_type': [],
-    # 'pretrained_vectors': [],
+    'train_embeddings': [True],
+    'word_vector_type': [],
+    'pretrained_vectors': [],
 
 }
