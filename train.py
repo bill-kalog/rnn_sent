@@ -213,7 +213,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             acc_sum = 0
             loss_sum = 0
             for i in range(0, len(x_batch), mini_size):
-                print ("{}-{}".format(i, len(x_batch)))
                 if (i + mini_size < len(x_batch)):
                     mini_x_batch = x_batch[i:i + mini_size]
                     mini_y_batch = y_batch[i:i + mini_size]

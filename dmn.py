@@ -94,7 +94,7 @@ class DMN(object):
                 initial_state_bw=initial_state,
                 sequence_length=self.seq_lengths
             )
-            self.output = output
+            self.output = tf.concat(output, 2)
 
         else:
             self.dimensionality_mult = 1
@@ -120,7 +120,8 @@ class DMN(object):
 
                 # create sequential rnn from single cells
                 rnn_cell_q = tf.contrib.rnn.DropoutWrapper(
-                    tf.contrib.rnn.GRUCell(num_units=self.dim_proj),
+                    tf.contrib.rnn.GRUCell(
+                        num_units=self.dim_proj * self.dimensionality_mult),
                     input_keep_prob=1.0,
                     output_keep_prob=1.0
                 )
@@ -182,7 +183,7 @@ class DMN(object):
             # declare weights for attention
             w_1_dim = 256
             # TODO: fix dimensions for bidirectional ??
-            hidden_z_shape = [self.dim_proj * 4, w_1_dim]
+            hidden_z_shape = [self.dim_proj * 4 * self.dimensionality_mult, w_1_dim]
             W_1 = tf.get_variable(
                 "att_weight_1", shape=hidden_z_shape,
                 initializer=tf.contrib.layers.xavier_initializer()
@@ -279,7 +280,7 @@ class DMN(object):
                 inputs = tf.concat([facts, self.all_attentions[-1]], 2)
                 print ("inputs {} shape {}".format(inputs, inputs.shape))
                 attention_cell = tf.contrib.rnn.DropoutWrapper(
-                    AttentionBasedGRUCell(num_units=self.dim_proj),
+                    AttentionBasedGRUCell(num_units=self.dim_proj * self.dimensionality_mult),
                     input_keep_prob=self.input_keep_prob,
                     output_keep_prob=self.output_keep_prob
                 )
@@ -306,9 +307,9 @@ class DMN(object):
             c_input = tf.concat(input_, 1)
             W = tf.get_variable(
                 "w_mem_update_{}".format(ep_number),
-                shape=[int(c_input.shape[1]), self.dim_proj],
+                shape=[int(c_input.shape[1]), self.dim_proj * self.dimensionality_mult],
                 initializer=tf.contrib.layers.xavier_initializer())
-            b = tf.Variable(tf.constant(0.1, shape=[self.dim_proj]),
+            b = tf.Variable(tf.constant(0.1, shape=[self.dim_proj * self.dimensionality_mult]),
                             name="b_mem_update_{}".format(ep_number))
             new_memory = tf.nn.relu(
                 tf.nn.xw_plus_b(c_input, W, b))
