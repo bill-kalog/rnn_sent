@@ -3,6 +3,7 @@ import numpy as np
 from math import ceil
 import sys
 import os
+from attention_cell import AttentionBasedGRUCell
 
 
 class RNN(object):
@@ -523,9 +524,9 @@ class RNN_Attention(object):
             self.out_state = state
             self.output = output
 
-        self.attention()
+        self.attention(config)
 
-    def attention(self):
+    def attention(self, config):
 
         with tf.name_scope("attention_fc_layer"):
             # reshape out put to be [batches, seq_length, word_dimensionality]
@@ -649,16 +650,43 @@ class RNN_Attention(object):
                                   tf.TensorShape([None, None]),
                                   tf.TensorShape([None, None])]
             )
-            print (" a list shape ======== : {}".format(self.a_list.shape))
-            representations_shape = [-1, self.dim_proj * self.dimensionality_mult]
-            self.a_list = tf.reshape(self.a_list, representations_shape)
+            if config['attention_GRU']:
+                with tf.name_scope("attention_GRU"):
+                    """ use attention GRU in similar fashion to a DMN
+                    """
+                    self.attention_scores_exp = tf.expand_dims(
+                        self.attention_scores, axis=-1)
+                    inputs = tf.concat(
+                        [self.attention_input, self.attention_scores_exp], 2)
+                    print (" att GRU inputs {} shape {}".format(inputs, inputs.shape))
+                    attention_cell = tf.contrib.rnn.DropoutWrapper(
+                        AttentionBasedGRUCell(
+                            num_units=self.dim_proj * self.dimensionality_mult),
+                        input_keep_prob=self.input_keep_prob,
+                        output_keep_prob=self.output_keep_prob
+                )
+                rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                    [attention_cell] * 1, state_is_tuple=True)
+                initial_state = rnn_cell_seq.zero_state(
+                    self.batch_size, tf.float32)
+                _, c_t = tf.nn.dynamic_rnn(
+                    inputs=inputs, cell=rnn_cell_seq,
+                    sequence_length=self.seq_lengths,
+                    initial_state=initial_state)
+                self.state_ = c_t[-1]
+                print ("att GRU state_ ", self.state_)
 
-         
-            print (" a list shape 2 ======== : {}".format(self.a_list.shape))
-            self.sentence_repr = tf.reshape(self.a_list, representations_shape)
-            print ("sentence repr reduced ++ ", self.sentence_repr.shape)
-            # TODO wtite it better and more modular
-            self.state_ = self.sentence_repr
+            else:
+                print (" a list shape ======== : {}".format(self.a_list.shape))
+                representations_shape = [-1, self.dim_proj * self.dimensionality_mult]
+                self.a_list = tf.reshape(self.a_list, representations_shape)
+
+             
+                print (" a list shape 2 ======== : {}".format(self.a_list.shape))
+                self.sentence_repr = tf.reshape(self.a_list, representations_shape)
+                print ("sentence repr reduced ++ ", self.sentence_repr.shape)
+                # TODO wtite it better and more modular
+                self.state_ = self.sentence_repr
 
         # attention using whole tensor in  caclulation, 
         # OPPOSITE to each and every sentence length, 

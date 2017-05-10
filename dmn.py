@@ -38,6 +38,10 @@ class DMN(object):
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
         self.all_attentions = []
 
+        self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
+
+
+
         self.build_input()
         self.encoder()
         self.question_module()
@@ -387,3 +391,24 @@ class DMN(object):
                 start=1, limit=self.sentence_len + 1, dtype=tf.int32)
             mask = tf.multiply(mask, range_, name="mask")
             return tf.reduce_max(mask, axis=1)
+
+
+    # def load(self, sess, checkpoint_path):
+    #     for i in (tf.global_variables()):
+    #         print (i.name)
+    #     print ("========================================================")
+    #     last_model = tf.train.latest_checkpoint(checkpoint_path)
+    #     print ("About to load: {}".format(last_model))
+    #     self.saver_1 = tf.train.import_meta_graph("{}.meta".format(last_model))
+    #     self.saver_1.restore(sess, last_model)
+    #     print ("Model loaded")
+    #     # self.declare_graph()
+    #     # print (tf.global_variables())
+    #     for i in (tf.global_variables()):
+    #         print (i.name)
+    #     # tf.get_default_graph()
+    #     # print (sess.run(tf.global_variables_initializer()))
+
+    # # def save(self, sess, checkpoint_prefix, iter_):
+    #     s_path = self.saver.save(sess, checkpoint_prefix, global_step=iter_)
+    #     print ("Saved model snapshot in {}\n".format(s_path))

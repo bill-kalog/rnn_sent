@@ -2,8 +2,11 @@
 config = {
 
     'dat_directory': '../datasets',
-    'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
-    'classes_num': 2,  # number of classes
+    "load_last_checkpoint": "./runs/1494414044/checkpoints",
+    'eval': False,  # train or evaluate model
+
+    'sst_finegrained': True,  # used only when/if loading SST choooses [5, 2] classes
+    'classes_num': 5,  # number of classes
 
     'bidirectional': True,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
@@ -13,6 +16,7 @@ config = {
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN ** BROKEN DOESN'T USE **
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
     'use_attention': True,  # use attention on the rnn outputs
+    'attention_GRU': True,  # for the simple RNN choose between producing the sentence representation through a weighted sum of attention or through an attention GRU as presented in  `Dynamic Memory Networks for Visual and Textual Question Answering`
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # both word embeding dimension and RNN number of hidden units.
@@ -37,6 +41,7 @@ config = {
 
     # train procedure specific
     'evaluate_every': 20,  # evaluate on dev set
+    'checkpoint_every': 50,  # keep a model checkpoint every 50 steps
 
     'save_step': 800,  # save word embeddings
     # 'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000, 4000],
@@ -46,6 +51,7 @@ config = {
 
     # word embeddings args
     'std_dev': 0.01,  # variance
+    # 'std_dev': 0.08,  # variance
     # 'train_embeddings': [True, None],
     # 'word_vector_type': ['glove'],
     # 'pretrained_vectors': ['../datasets/glove_6B/glove.6B.100d.txt'],
