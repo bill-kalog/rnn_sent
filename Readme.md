@@ -20,7 +20,7 @@ attention GRU cell architecture is based on code from [barronalex](https://githu
 
 ### hyperparameters
 
-the following hypereparameters can be chnaged inside `conf.py`
+the following hyperparameters can be changed inside `conf.py`
 
 |hyperparameter| description|
 |--------------|------------|
@@ -32,7 +32,7 @@ the following hypereparameters can be chnaged inside `conf.py`
 |bidirectional| Choose between having a bidirectional sentence encoder or not |
 |GRU| Choose between using an LSTM or a GRU cell inside the encoder (pay attention though as event if set at `False` i.e LSTM some encoders (DMN) still use a GRU)|
 |pooling| Choose between using avg pooling or fc layer on top of an lstm for sentence classification  |
-|pool_all_output| Do avg pooling over all outputs of an RNN ** BROKEN DON'T USE ** |
+|pool_all_output| Do avg pooling over all outputs of an RNN **BROKEN DON'T USE** |
 |attention| Choose between using tensorflows' attention wrapper for a cell or not (better not use it i.e set to `False`) |
 |use_attention| Use attention weights in the outputs of an RNN |
 |attention_GRU| For an RNN choose between using attention weights in a weighted sum of the outputs fashion or feeding the weights to a GRU like in  [Dynamic Memory Networks for Visual and Textual Question Answering](https://arxiv.org/abs/1603.01417) |

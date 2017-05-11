@@ -11,7 +11,6 @@ class RNN(object):
     def __init__(self, config, word_vectors=[]):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
-        # self.batch_size = config['batch_size']
         self.l2_weight = config["l2_norm_w"]
         self.batch_size = tf.placeholder(tf.int32, name="batch_size")
         self.n_words = config['n_words']
@@ -98,14 +97,6 @@ class RNN(object):
         rnn_input = [embedded_tokens[:, i, :] for i in range(
             self.sentence_len)]
 
-        # input_shape = [self.batch_size, self.sentence_len, self.dim_proj]
-        # rnn_input = tf.Variable(tf.float32, input_shape)
-        # assign_op = tf.assign(embedded_tokens, rnn_input, )
-
-        # rnn_input = embedded_tokens
-        # self.test = rnn_input[0]
-        # rnn_input_back = [embedded_tokens[:, i, :] for i in range(
-        #     self.sentence_len - 1, -1, -1)]
         with tf.name_scope("calc_sequences_length"):
             '''
             calculate actual lenght of each sentence -- known bug
@@ -171,18 +162,6 @@ class RNN(object):
                     self.output = tf.concat(
                         [state_fw[0][-1], state_bw[0][-1]], 1)
 
-                # self.state_ = state_fw[-1][0] + state_bw[-1][0]
-                # self.output = output
-                # self.state_ = state_bw[-1][0]
-                # self.state_ = output[-1]
-                # self.output = output
-                # self.output = state_bw[-1]
-                # self.output = tf.concat([state_fw[-1], state_bw[-1]], 1)
-                
-                # self.state_ = tf.concat([state_fw[-1][0], state_bw[-1][0]], 1)
-                # self.state_1 = state_fw[-1][0]
-                # self.state_2 = state_bw[-1][0]
-                # self.state_ = tf.concat([state_bw[-1][1], state_bw[-1][0]], 1)
                 self.times = 2
 
             else:
@@ -230,7 +209,6 @@ class RNN(object):
             else:
                 # self.state_ = self.output[-1]
                 self.state_ = self.output
-
 
 
                 # self.stacked_outputs = tf.reshape(
@@ -282,10 +260,6 @@ class RNN(object):
                 # self.l_drop = self.state_
 
             with tf.name_scope("fc_layer"):
-                print (self.state_.shape[1] , "-----------------------")
-                # shape = [tf.shape(self.state_)[1], self.num_classes]
-                # shape = [self.times * self.dim_proj, self.num_classes]
-                # shape = [self.sentence_len, self.num_classes]
 
                 shape = [int(self.state_.shape[1]), self.num_classes]
                 # hidden_layer_dim = 150
@@ -412,15 +386,12 @@ class RNN_Attention(object):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
         self.l2_weight = config["l2_norm_w"]
-        # self.batch_size = config['batch_size']
         self.batch_size = tf.placeholder(tf.int32, name="batch_size")
         self.n_words = config['n_words']
         self.learning_rate = config['learning_rate']
         self.num_classes = config['classes_num']
         self.word_vectors = word_vectors
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
-        # self.str_summary_type = tf.placeholder(
-        #     tf.string, name="str_summary_type")
         self.input_keep_prob = tf.placeholder(
             tf.float32, name="keep_prob_inp")
         self.output_keep_prob = tf.placeholder(
@@ -429,11 +400,6 @@ class RNN_Attention(object):
         self.max_gradient_norm = config["clip_threshold"]
         self.x = tf.placeholder(tf.int32, [None, self.sentence_len], name="x")
         self.y = tf.placeholder(tf.float32, [None, self.num_classes], name="y")
-        # self.seq_lengths = tf.placeholder(
-        #     tf.int32, shape=[None], name="early_stop")
-        # self.seq_lengths = [self.n_words] * config['batch_size']
-        # self.seq_lengths = tf.placeholder(
-        #     tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
 
@@ -537,12 +503,8 @@ class RNN_Attention(object):
 
         with tf.name_scope("attention_fc_layer"):
             # reshape out put to be [batches, seq_length, word_dimensionality]
-            print ("output {} length {}".format(
-                self.output[0].shape, len(self.output)))
             self.output = np.asarray(self.output)
             self.output = tf.stack(list(self.output))
-            print (" out____ ", self.output.get_shape())
-
 
             # change sequence of dimensions
             self.attention_input = tf.transpose(
@@ -558,7 +520,6 @@ class RNN_Attention(object):
                 name="b"
             )
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
-            print (" attention___ ", self.attention_input.get_shape())
             # reshape 3d tensor to be mjltiplied by the weights
             temp_shape_in = [
                 self.batch_size * self.sentence_len, self.dim_proj * self.dimensionality_mult]
@@ -607,7 +568,7 @@ class RNN_Attention(object):
 
             # caclulate attention using a for loop over the batch in order
             # not to take into account zero padding
-            print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
+            # print ("unormalized attentio scores +++ ", self.unormalized_att_scores.shape)
 
             # initialize tensors, (size doesn't matter)
             a_list = tf.Variable(
@@ -658,6 +619,8 @@ class RNN_Attention(object):
                                   tf.TensorShape([None, None]),
                                   tf.TensorShape([None, None])]
             )
+            tf.add_to_collection(
+                    'l1_loss', tf.norm(self.attention_scores, axis=1, ord=2))
             if config['attention_GRU']:
                 with tf.name_scope("attention_GRU"):
                     """ use attention GRU in similar fashion to a DMN
@@ -666,7 +629,7 @@ class RNN_Attention(object):
                         self.attention_scores, axis=-1)
                     inputs = tf.concat(
                         [self.attention_input, self.attention_scores_exp], 2)
-                    print (" att GRU inputs {} shape {}".format(inputs, inputs.shape))
+                    # print (" att GRU inputs {} shape {}".format(inputs, inputs.shape))
                     attention_cell = tf.contrib.rnn.DropoutWrapper(
                         AttentionBasedGRUCell(
                             num_units=self.dim_proj * self.dimensionality_mult),
@@ -682,17 +645,13 @@ class RNN_Attention(object):
                     sequence_length=self.seq_lengths,
                     initial_state=initial_state)
                 self.state_ = c_t[-1]
-                print ("att GRU state_ ", self.state_)
+                # print ("att GRU state_ ", self.state_)
 
             else:
-                print (" a list shape ======== : {}".format(self.a_list.shape))
                 representations_shape = [-1, self.dim_proj * self.dimensionality_mult]
                 self.a_list = tf.reshape(self.a_list, representations_shape)
 
-             
-                print (" a list shape 2 ======== : {}".format(self.a_list.shape))
                 self.sentence_repr = tf.reshape(self.a_list, representations_shape)
-                print ("sentence repr reduced ++ ", self.sentence_repr.shape)
                 # TODO wtite it better and more modular
                 self.state_ = self.sentence_repr
 
@@ -743,9 +702,12 @@ class RNN_Attention(object):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
             self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
+            self.total_l1_norm = tf.reduce_sum(tf.add_n(tf.get_collection('l1_loss')))
+
             # self.total_loss = tf.reduce_sum(self.losses)
             self.mean_loss = (tf.reduce_mean(self.losses) +
-                              self.l2_weight * self.total_l2_norm)
+                              self.l2_weight * self.total_l2_norm +
+                              100 * self.total_l1_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -782,6 +744,7 @@ class RNN_Attention(object):
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
         w_norm_summary = tf.summary.scalar("weight_norm", self.total_l2_norm)
+        att_norm = tf.summary.scalar("attention_norm", self.total_l1_norm)
         # Summaries
         self.summary_op = tf.summary.merge(
             [loss_summary, acc_summary, w_norm_summary])

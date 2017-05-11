@@ -3,6 +3,7 @@ from conf import config
 from datasets import Dataset
 from word_vectors import WordVectors
 import train
+import evaluate
 import sys
 
 
@@ -63,7 +64,7 @@ with g.as_default():
     sess = tf.Session()
     with sess.as_default():
         if config['eval']:
-            train.eval_model(
+            evaluate.eval_model(
                 sess, g, config["load_last_checkpoint"], data, config,
             )
         else:

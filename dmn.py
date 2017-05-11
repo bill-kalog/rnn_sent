@@ -73,6 +73,11 @@ class DMN(object):
 
             self.seq_lengths = self.get_seq_lenghts("facts", self.x)
 
+            # self.seq_lengths_tensor = tf.concat(
+            #     [self.seq_lengths], -1, name="seq_lengths_tensor")
+            # print (" seq_lengths_tensor :", self.seq_lengths_tensor)
+            # print (self.seq_lengths)
+
     def encoder(self):
         with tf.name_scope("rnn_cell"):
             if self.config['GRU']:  # use GRU cell
@@ -110,7 +115,7 @@ class DMN(object):
             )
             # self.out_state = state
             self.output = output
-        print ("outpput of encoder {}".format(self.output.shape))
+        # print ("outpput of encoder {}".format(self.output.shape))
 
     def question_module(self):
         """ declare question module """
@@ -155,6 +160,15 @@ class DMN(object):
                 c_t = self.attention(self.output, self.output_q, memory, i)
                 # update memory
                 memory = self.memory_update(memory, c_t, self.output_q, i)
+            self.all_attentions_tensor = tf.concat(
+                values=self.all_attentions,
+                axis=2,
+                name="all_attentions_concat")
+            print ("All attentions", self.all_attentions_tensor)
+            self.all_attentions_tensor = tf.transpose(
+                self.all_attentions_tensor, perm=[2, 0, 1],
+                name="all_attentions_transp")
+            print ("All attentions", self.all_attentions_tensor)
             self.last_memory = memory
 
     def answer_module(self):
@@ -229,15 +243,13 @@ class DMN(object):
                     prev_memory_for_fact = tf.slice(
                         prev_memory, [i, 0], [1, -1])
                     # calculate z_i
-                    print (
-                        "fact {}\n quesiton {}\n prev memory {}\n".format(fact.shape, question.shape, prev_memory.shape))
+                    # print (
+                    #     "fact {}\n question {}\n prev memory {}\n".format(fact.shape, question.shape, prev_memory.shape))
                     z_i = [tf.multiply(fact, question_for_fact),
                            tf.multiply(fact, prev_memory_for_fact),
                            tf.abs(fact - question_for_fact),
                            tf.abs(fact - prev_memory_for_fact)]
                     z_i_c = tf.concat(z_i, 1)
-                    print ("z_i_c = {}".format(z_i_c.shape))
-                    # self.a = z_i_c
 
 
                     # # calculate attention values
@@ -253,14 +265,12 @@ class DMN(object):
                     unorm_att = tf.nn.xw_plus_b(inter, W_2, b_2)
 
                     # softmax values g_i
-                    print (unorm_att)
                     g_i = tf.nn.softmax(tf.transpose(unorm_att))
-                    print ("G_I ", g_i)
+
                     # zero pad attentions to fit in tensor
                     paddings = [[0, 0],
                                 [0, self.sentence_len - up_to]]
                     padded_g_i = tf.pad(g_i, paddings, "CONSTANT")
-                    print ("Padded G I", padded_g_i)
                     padded_g_i = tf.reshape(padded_g_i, [1, -1])
                     g_tensor = tf.cond(
                         tf.equal(i, 0), lambda: padded_g_i, lambda: tf.concat(
@@ -276,6 +286,10 @@ class DMN(object):
                                       tf.TensorShape([None, None])]
                 )
                 g_tensor = tf.reshape(g_tensor, [-1, self.sentence_len])
+                # tf.add_to_collection('l1_loss', tf.norm(g_i, ord=1))
+
+                # print (tf.norm(g_tensor, axis=1, ord=1))
+                # sys.exit()
                 # self.a = g_tensor
                 print ("g_tensor: {}".format(g_tensor.shape))
                 self.all_attentions.append(tf.expand_dims(g_tensor, axis=-1))
@@ -286,7 +300,11 @@ class DMN(object):
                 # c_t = []
                 # inputs to gru, take last attention distribution
                 inputs = tf.concat([facts, self.all_attentions[-1]], 2)
-                print ("inputs {} shape {}".format(inputs, inputs.shape))
+
+                tf.add_to_collection(
+                    'l1_loss', tf.norm(self.all_attentions[-1], axis=1, ord=1))
+
+                # print ("inputs {} shape {}".format(inputs, inputs.shape))
                 attention_cell = tf.contrib.rnn.DropoutWrapper(
                     AttentionBasedGRUCell(num_units=self.dim_proj * self.dimensionality_mult),
                     input_keep_prob=self.input_keep_prob,
@@ -300,8 +318,6 @@ class DMN(object):
                     inputs=inputs, cell=rnn_cell_seq,
                     sequence_length=self.seq_lengths,
                     initial_state=initial_state)
-                print (c_t[-1])
-                print ("sentencre represenattoins c_t {}".format(c_t[-1].shape))
                 return c_t[-1]
 
     def memory_update(self, prev_memory, c_t, question, ep_number):
@@ -321,7 +337,7 @@ class DMN(object):
                             name="b_mem_update_{}".format(ep_number))
             new_memory = tf.nn.relu(
                 tf.nn.xw_plus_b(c_input, W, b))
-            print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
+            # print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             return new_memory
 
@@ -341,7 +357,6 @@ class DMN(object):
 
     def train(self):
         """ calculate accuracies, train and predict """
-        print ("scores {}".format(self.scores.shape))
         with tf.name_scope("predict"):
             self.predictions = tf.argmax(self.scores, 1)
             self.true_predictions = tf.argmax(self.y, 1)
@@ -349,11 +364,13 @@ class DMN(object):
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
-            print (" weights to normalize ", tf.get_collection('l2_loss'))
+            # print (" weights to normalize ", tf.get_collection('l2_loss'))
             self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
+            self.total_l1_norm = tf.reduce_sum(tf.add_n(tf.get_collection('l1_loss')))
             # self.total_loss = tf.reduce_sum(self.losses)
             self.mean_loss = (tf.reduce_mean(self.losses) +
-                              self.l2_weight * self.total_l2_norm)
+                              self.l2_weight * self.total_l2_norm +
+                              10 * self.total_l1_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -361,6 +378,11 @@ class DMN(object):
                 tf.cast(self.correct_predictions, "float"), name="accuracy")
 
         params = tf.trainable_variables()
+        # params = tf.get_default_graph().get_operations()
+        # print (params)
+        # for par in params:
+        #     print (par.name)
+        # sys.exit()
 
         with tf.name_scope("train"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -382,9 +404,10 @@ class DMN(object):
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
         w_norm_summary = tf.summary.scalar("weight_norm", self.total_l2_norm)
+        att_norm = tf.summary.scalar("attention_norm", self.total_l1_norm)
         # Summaries
         self.summary_op = tf.summary.merge(
-            [loss_summary, acc_summary, w_norm_summary])
+            [loss_summary, acc_summary, w_norm_summary, att_norm])
 
     def get_seq_lenghts(self, type_, input_):
         '''
