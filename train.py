@@ -362,8 +362,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             run_metadata = tf.RunMetadata()
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
-                       network.summary_op]
-            _, current_step, accuracy, loss, net_sum = sess.run(
+                       network.summary_op, network.total_l2_norm]
+            _, current_step, accuracy, loss, net_sum, total_l2_norm = sess.run(
                 output_, feed_dict, options=run_options,
                 run_metadata=run_metadata)
 
@@ -410,8 +410,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             
             output_ = [network.update, network.global_step,
                        network.accuracy, network.mean_loss,
-                       network.summary_op]
-            _, current_step, accuracy, loss, net_sum = sess.run(
+                       network.summary_op, network.total_l2_norm]
+            _, current_step, accuracy, loss, net_sum, total_l2_norm = sess.run(
                 output_, feed_dict)
 
         if config['save_step'] == current_step:
@@ -422,8 +422,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         train_summary_writer.add_summary(net_sum, current_step)
 
         time_str = datetime.datetime.now().isoformat()
-        print("{}: step {}, loss {}, acc {}, b_len {}".format(
-            time_str, current_step, loss, accuracy, len(x_batch)))
+        print("{}: step {}, loss {}, acc {}, b_len {} l2 norm {}".format(
+            time_str, current_step, loss, accuracy, len(x_batch), total_l2_norm))
 
         # train_summary_writer.add_summary(summaries, step)
         # grad_summaries_writer.add_summary(grad_summary, step)

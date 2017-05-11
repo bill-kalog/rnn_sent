@@ -12,6 +12,7 @@ class RNN(object):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
         # self.batch_size = config['batch_size']
+        self.l2_weight = config["l2_norm_w"]
         self.batch_size = tf.placeholder(tf.int32, name="batch_size")
         self.n_words = config['n_words']
         self.learning_rate = config['learning_rate']
@@ -268,6 +269,7 @@ class RNN(object):
                     name="b"
                 )
                 self.scores = tf.nn.xw_plus_b(self.flat_pool, W, b)
+                tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
 
         else:
             with tf.name_scope("drop_out"):
@@ -297,7 +299,7 @@ class RNN(object):
                     0.1, shape=[self.num_classes]),
                     trainable=True, name="b"
                 )
-
+                tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
                 self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
 
                 # add another layer
@@ -322,8 +324,10 @@ class RNN(object):
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
+            self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
             # self.total_loss = tf.reduce_sum(self.losses)
-            self.mean_loss = tf.reduce_mean(self.losses)
+            self.mean_loss = (tf.reduce_mean(self.losses) +
+                              self.l2_weight * self.total_l2_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -393,8 +397,10 @@ class RNN(object):
             self.fixed_acc_value
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
+        w_norm_summary = tf.summary.scalar("weight_norm", self.total_l2_norm)
         # Train Summaries
-        self.summary_op = tf.summary.merge([loss_summary, acc_summary])
+        self.summary_op = tf.summary.merge(
+            [loss_summary, acc_summary, w_norm_summary])
         # Dev summaries
         # self.dev_summary_op = tf.summary.merge([loss_summary, acc_summary])
 
@@ -405,6 +411,7 @@ class RNN_Attention(object):
     def __init__(self, config, word_vectors=[]):
         self.dim_proj = config['dim_proj']
         self.layers = config['layers']
+        self.l2_weight = config["l2_norm_w"]
         # self.batch_size = config['batch_size']
         self.batch_size = tf.placeholder(tf.int32, name="batch_size")
         self.n_words = config['n_words']
@@ -550,6 +557,7 @@ class RNN_Attention(object):
                 tf.constant(0.1, shape=[self.sentence_len]),
                 name="b"
             )
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             print (" attention___ ", self.attention_input.get_shape())
             # reshape 3d tensor to be mjltiplied by the weights
             temp_shape_in = [
@@ -722,6 +730,7 @@ class RNN_Attention(object):
                 0.1, shape=[self.num_classes]),
                 name="b"
             )
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
 
     def train(self):
@@ -733,8 +742,10 @@ class RNN_Attention(object):
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
+            self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
             # self.total_loss = tf.reduce_sum(self.losses)
-            self.mean_loss = tf.reduce_mean(self.losses)
+            self.mean_loss = (tf.reduce_mean(self.losses) +
+                              self.l2_weight * self.total_l2_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -755,7 +766,6 @@ class RNN_Attention(object):
         self.update = optimizer.apply_gradients(
             zip(clipped_gradients, params), global_step=self.global_step)
 
-
     def summarize(self, config):
         # out_dir = config['out_dir']
         # Summaries for loss and accuracy
@@ -771,7 +781,9 @@ class RNN_Attention(object):
             self.fixed_acc_value
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
+        w_norm_summary = tf.summary.scalar("weight_norm", self.total_l2_norm)
         # Summaries
-        self.summary_op = tf.summary.merge([loss_summary, acc_summary])
+        self.summary_op = tf.summary.merge(
+            [loss_summary, acc_summary, w_norm_summary])
         # Dev summaries
         # self.dev_summary_op = tf.summary.merge([loss_summary, acc_summary])

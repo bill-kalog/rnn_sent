@@ -5,8 +5,8 @@ config = {
     "load_last_checkpoint": "./runs/1494414044/checkpoints",
     'eval': False,  # train or evaluate model
 
-    'sst_finegrained': True,  # used only when/if loading SST choooses [5, 2] classes
-    'classes_num': 5,  # number of classes
+    'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
+    'classes_num': 2,  # number of classes
 
     'bidirectional': True,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
@@ -20,7 +20,7 @@ config = {
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # both word embeding dimension and RNN number of hidden units.
-    'layers': 1,
+    'layers': 3,
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 200,
     'n_words': None,  # Leave as None, dictionary size
@@ -32,6 +32,7 @@ config = {
     'keep_prob_out': .5,
     # 'keep_prob_inp': 1.,
     # 'keep_prob_out': 1.,
+    'l2_norm_w': 5,
 
     # DMN specific
     'dmn': True,  # use a dynamic memory network
@@ -45,7 +46,7 @@ config = {
 
     'save_step': 800,  # save word embeddings
     # 'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000, 4000],
-    'save_step_dev_info': [50, 100, 500, 800, 1200, 1500, 2000, 4000],
+    'save_step_dev_info': [50, 100, 500, 800, 1000, 1200, 1500, 1700, 2000, 2500, 4000],
 
     # 'save_step_dev_info': [1500, 2000, 4000],
 

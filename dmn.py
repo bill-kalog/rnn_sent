@@ -15,6 +15,7 @@ class DMN(object):
         self.n_words = config['n_words']
         self.learning_rate = config['learning_rate']
         self.num_classes = config['classes_num']
+        self.l2_weight = config["l2_norm_w"]
         self.word_vectors = word_vectors
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
         self.config = config
@@ -173,6 +174,7 @@ class DMN(object):
                 trainable=True, name="b_answer"
             )
             self.scores = tf.nn.xw_plus_b(self.state_, W, b)
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
 
     def attention(self, facts, question, prev_memory, ep_number):
         ''' calculate the attention distribution for a batch of sentences
@@ -200,6 +202,8 @@ class DMN(object):
             )
             b_2 = tf.Variable(tf.constant(
                 0.1, shape=[1]), name="att_bias_2")
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W_1))
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W_2))
 
             with tf.name_scope("attention_gates"):
 
@@ -318,6 +322,7 @@ class DMN(object):
             new_memory = tf.nn.relu(
                 tf.nn.xw_plus_b(c_input, W, b))
             print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             return new_memory
 
             # way less than 'half' finished gru memory update
@@ -344,8 +349,11 @@ class DMN(object):
         with tf.name_scope("loss"):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
+            print (" weights to normalize ", tf.get_collection('l2_loss'))
+            self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
             # self.total_loss = tf.reduce_sum(self.losses)
-            self.mean_loss = tf.reduce_mean(self.losses)
+            self.mean_loss = (tf.reduce_mean(self.losses) +
+                              self.l2_weight * self.total_l2_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -373,8 +381,10 @@ class DMN(object):
             self.fixed_acc_value
         loss_summary = tf.summary.scalar("loss", self.mean_loss)
         acc_summary = tf.summary.scalar("accuracy", self.accuracy)
+        w_norm_summary = tf.summary.scalar("weight_norm", self.total_l2_norm)
         # Summaries
-        self.summary_op = tf.summary.merge([loss_summary, acc_summary])
+        self.summary_op = tf.summary.merge(
+            [loss_summary, acc_summary, w_norm_summary])
 
     def get_seq_lenghts(self, type_, input_):
         '''
