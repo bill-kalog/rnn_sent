@@ -148,8 +148,6 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                     output_ = [graph_all_attentions, graph_seq_lengths]
                     scores, seq_lengths = sess.run(
                         output_, feed_dict)
-                    print ("Scores :",scores)
-                    print (scores.shape)
                     sentences_in_batch = []
                     for i in range(len(mini_x_batch)):
                         sentence_scores = []
@@ -158,25 +156,15 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                                           for j in range(num_episodes)]
                             sentence_scores.append(attentions)
                         sentences_in_batch.append(sentence_scores)
-                    
-                    # print ("---------------------------")
-                    # print (len(sentences_in_batch))
-                    # print (sentences_in_batch[0])
-                    # print (len(sentences_in_batch[0]))
-                    # print (len(sentences_in_batch), len(sentences_in_batch[0]), len(sentences_in_batch[0][0]))
-                    # print (scores_combo[1])
-                    # print (scores[1])
-                    # print (a, a.shape)
-                    # for cc in range(100):
-                    #     print(np.sum(scores[0][cc][:]), seq_lengths[cc])
+
                     scores_list += sentences_in_batch
 
                     # sys.exit()
                 else:
-                    network = []
-                    output_ = [network.attention_scores, network.seq_lengths]
+                    output_ = [graph_attention_scores, graph_seq_lengths]
                     scores, seq_lengths = sess.run(
                         output_, feed_dict)
+                    print (len(scores.tolist()))
                     scores_list += scores.tolist()
                 # print ("seqeunce len ------------", scores, scores.tolist())
                 seq_length_list += seq_lengths.tolist()
@@ -189,6 +177,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                 "doesn't support having input as a single batch!! Set:"
                 "config['split_dev'] to True ")
             sys.exit(1)
+        print (len(scores_list))
+        print (seq_length_list , len(seq_length_list))
         # Build a dictionary to save at json format
         # adds some overhead
         dic_ = {}
@@ -262,6 +252,53 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         json.dump(dic_, open(path_ + ".json", 'w'), indent="\t")
         print("Saved attention weights file at: {}".format(path_ + ".json"))
 
+    def save_test_summary(x_batch, y_batch, x_strings_batch, name_):
+        '''
+        save info for a batch in order to plot in
+        bokeh later
+        '''
+        path_ = os.path.join(out_dir, name_)
+        y_net = []
+        prob_net = []
+        layer = []
+        true_labels = []
+        if config['split_dev']:
+            mini_size = config['dev_minibatch']
+            for i in range(0, len(x_batch), mini_size):
+                if (i + mini_size < len(x_batch)):
+                    mini_x_batch = x_batch[i:i + mini_size]
+                    mini_y_batch = y_batch[i:i + mini_size]
+                else:
+                    mini_x_batch = x_batch[i:]
+                    mini_y_batch = y_batch[i:]
+                dropouts = [1.0, 1.0, 1.0]
+                reg_metrics = [1, 0, 0]
+                feed_dict = make_feed_dict(
+                    mini_x_batch, mini_y_batch,
+                    dropouts, reg_metrics, question)
+
+                output_ = [graph_predictions, graph_true_predictions,
+                           graph_probs, graph_state_]
+                predictions, true_pred, probs, fc_layer = sess.run(
+                    output_, feed_dict)
+
+                prob_net += probs.tolist()
+                layer += fc_layer.tolist()
+                y_net += predictions.tolist()
+                true_labels += true_pred.tolist()
+
+        else:
+            print (
+                "doesn't support having input as a single batch!! Set:"
+                "config['split_dev'] to True ")
+            sys.exit(1)
+
+        # print (
+        #     len(x_strings_batch), len(true_labels), len(y_net),
+        #     len(prob_net), len(layer))
+        process_utils.save_info(
+            x_strings_batch, true_labels, y_net, prob_net, layer, path_)
+
     # output directory for data
     timestamp = str(int(time.time()))
     out_dir = os.path.join(checkpoint_paths, "..", "evaluations", timestamp)
@@ -289,8 +326,15 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     config['sentence_len'] = saved_conf['sentence_len']
     use_dmn = saved_conf['dmn']
 
+
     # load model
     last_model = tf.train.latest_checkpoint(checkpoint_paths)
+    # or get model from specific run
+    num_ = 1500
+    if num_ is not None:
+        temp = last_model[:last_model.find("model-") + len("model-")]
+        last_model = "{}{}".format(temp, num_)
+
     print ("About to load: {}".format(last_model))
     saver = tf.train.import_meta_graph("{}.meta".format(last_model))
     saver.restore(sess, last_model)
@@ -315,16 +359,53 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     graph_accuracy = g.get_operation_by_name("accuracy/accuracy").outputs[0]
 
     test_step(x_test, y_test)
-    if saved_conf["use_attention"]:
+    if saved_conf["use_attention"] or saved_conf["attention_GRU"] or use_dmn:
         # retrieve approriate operations_by_name
         if use_dmn:
-            graph_all_attentions = g.get_operation_by_name("episodic_module/all_attentions_transp").outputs[0]
-            graph_seq_lengths = g.get_operation_by_name("word_embeddings/calc_sequences_length_facts/Max").outputs[0]
+            graph_all_attentions = g.get_operation_by_name(
+                "episodic_module/all_attentions_transp").outputs[0]
+            graph_seq_lengths = g.get_operation_by_name(
+                "word_embeddings/calc_sequences_length_facts/Max").outputs[0]
         else:
-            # TODO
-            graph_attention_scores = g.get_operation_by_name("accuracy/accuracy").outputs[0]
-            graph_seq_lengths = g.get_operation_by_name("accuracy/accuracy").outputs[0]
+            # **TODO**
+            # graph_attention_scores = g.get_operation_by_name(
+            #     "attention_fc_layer/while/Exit_2").outputs[0]
+            # graph_seq_lengths = g.get_operation_by_name(
+            #     "calc_sequences_length/Max").outputs[0]
+            # plain lstm using attention GRU
+            graph_attention_scores = g.get_operation_by_name(
+                "attention_fc_layer/attention_calculation/Reshape").outputs[0]
+            graph_seq_lengths = g.get_operation_by_name(
+                "calc_sequences_length/Max").outputs[0]
         get_attention_weights(x_test, y_test, dx_test, "attention_test_")
+
+    # get operations for prediction
+    graph_predictions = g.get_operation_by_name(
+        "predict/ArgMax").outputs[0]
+    graph_true_predictions = g.get_operation_by_name(
+        "predict/ArgMax_1").outputs[0]
+    graph_probs = g.get_operation_by_name(
+        "predict/Softmax").outputs[0]
+    # TODO saveing for lstm without attentions
+    if use_dmn:
+        if saved_conf['episodes_num'] == 1:
+            graph_state_ = g.get_operation_by_name(
+                "episodic_module/memory_update/Relu").outputs[0]
+        else:
+            graph_state_ = g.get_operation_by_name(
+                "episodic_module/memory_update_{}/Relu".format(
+                    saved_conf['episodes_num'] - 1)).outputs[0]
+    else:  # TODO for normal lstm
+        # attention_fc_layer/Reshape_3
+        if saved_conf['attention_GRU']:
+            graph_state_ = g.get_operation_by_name(
+                    "attention_fc_layer/attention_GRU/rnn/while/Exit_2").outputs[0]
+        else:
+            graph_state_ = g.get_operation_by_name(
+                    "attention_fc_layer/Reshape_3").outputs[0]          
+    save_test_summary(
+        x_test, y_test, dx_test, 'metrics_test_{}.pkl'.format(
+            last_model[last_model.find("model-") + len("model-"):]))
 
 
 

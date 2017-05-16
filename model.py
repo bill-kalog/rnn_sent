@@ -497,10 +497,157 @@ class RNN_Attention(object):
             self.out_state = state
             self.output = output
 
+        # self.attention_old(config)
         self.attention(config)
 
     def attention(self, config):
+        with tf.name_scope("attention_fc_layer"):
+            # reshape out put to be [batches, seq_length, word_dimensionality]
+            self.output = np.asarray(self.output)
+            self.output = tf.stack(list(self.output))
 
+            # change sequence of dimensions
+            self.attention_input = tf.transpose(
+                self.output, perm=[1, 0, 2])
+
+            w_1_dim = 512
+            hidden_z_shape = [self.dim_proj * self.dimensionality_mult, w_1_dim]
+            g_tensor = tf.Variable(tf.truncated_normal(
+                [1, self.dim_proj]), name="g_scores")
+            i = tf.constant(0)
+
+
+            W_1 = tf.get_variable(
+                "att_weight_1", shape=hidden_z_shape,
+                initializer=tf.contrib.layers.xavier_initializer()
+            )
+            b_1 = tf.Variable(tf.constant(
+                0.1, shape=[w_1_dim]), name="att_bias_1")
+            # W_2 = tf.get_variable(
+            #     "att_weight_2", shape=[w_1_dim, 1],
+            #     initializer=tf.contrib.layers.xavier_initializer()
+            # )
+            # b_2 = tf.Variable(tf.constant(
+            #     0.1, shape=[1]), name="att_bias_2")
+            w_2_dim = 512
+            W_2 = tf.get_variable(
+                "att_weight_2", shape=[w_1_dim, w_2_dim],
+                initializer=tf.contrib.layers.xavier_initializer()
+            )
+            b_2 = tf.Variable(tf.constant(
+                0.1, shape=[w_2_dim]), name="att_bias_2")
+
+            W_3 = tf.get_variable(
+                "att_weight_3", shape=[w_2_dim, 1],
+                initializer=tf.contrib.layers.xavier_initializer()
+            )
+            b_3 = tf.Variable(tf.constant(
+                0.1, shape=[1]), name="att_bias_3")
+
+
+
+
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W_1))
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W_2))
+
+            with tf.name_scope("attention_calculation"):
+                def condition(i, g_tensor):
+                    return tf.less(i, self.batch_size)
+
+                def body(i, g_tensor):
+                    up_to = self.seq_lengths[i]
+                    # if sentence was full with <unk> 
+                    # (i.e seq_lengths[i] == 0) just take a vector of zeros
+                    # as fact representation
+                    up_to = tf.cond(
+                        tf.equal(up_to, 0), lambda: tf.constant(1),
+                        lambda: up_to
+                    )
+
+                    fact = tf.slice(
+                        self.attention_input, [i, 0, 0], [1, up_to, -1])
+
+                    fact = tf.reshape(fact, [up_to, -1])
+
+                    # # calculate attention values
+                    inter = tf.nn.tanh(
+                        tf.nn.xw_plus_b(fact, W_1, b_1)
+                    )
+
+                    # # calculate attention values
+                    inter_2 = tf.nn.tanh(
+                        tf.nn.xw_plus_b(inter, W_2, b_2)
+                    )
+                    unorm_att = tf.nn.xw_plus_b(inter_2, W_3, b_3)
+
+
+                    # unorm_att = tf.nn.xw_plus_b(inter, W_2, b_2)
+
+                    # softmax values g_i
+                    g_i = tf.nn.softmax(tf.transpose(unorm_att))
+
+                    # zero pad attentions to fit in tensor
+                    paddings = [[0, 0],
+                                [0, self.sentence_len - up_to]]
+                    padded_g_i = tf.pad(g_i, paddings, "CONSTANT")
+                    padded_g_i = tf.reshape(padded_g_i, [1, -1])
+                    g_tensor = tf.cond(
+                        tf.equal(i, 0), lambda: padded_g_i, lambda: tf.concat(
+                            [g_tensor, padded_g_i], axis=0)
+                    )
+
+                    i = tf.add(i, 1)
+                    return [i, g_tensor]
+
+                _, g_tensor = tf.while_loop(
+                    condition, body, [i, g_tensor],
+                    shape_invariants=[i.get_shape(),
+                                      tf.TensorShape([None, None])]
+                )
+                g_tensor = tf.reshape(g_tensor, [-1, self.sentence_len])
+                self.attention_scores = g_tensor
+
+            with tf.name_scope("attention_GRU"):
+                self.attention_scores_exp = tf.expand_dims(
+                    self.attention_scores, axis=-1)
+                inputs = tf.concat(
+                    [self.attention_input, self.attention_scores_exp], 2)
+                attention_cell = tf.contrib.rnn.DropoutWrapper(
+                    AttentionBasedGRUCell(
+                        num_units=self.dim_proj * self.dimensionality_mult),
+                    input_keep_prob=self.input_keep_prob,
+                    output_keep_prob=self.output_keep_prob
+                )
+                rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                    [attention_cell] * 1, state_is_tuple=True)
+                initial_state = rnn_cell_seq.zero_state(
+                    self.batch_size, tf.float32)
+                _, c_t = tf.nn.dynamic_rnn(
+                    inputs=inputs, cell=rnn_cell_seq,
+                    sequence_length=self.seq_lengths,
+                    initial_state=initial_state)
+                self.state_ = c_t[-1]
+
+        with tf.name_scope("drop_out"):
+            self.l_drop = tf.nn.dropout(
+                self.state_, self.dropout_prob, name="drop_out")
+
+        with tf.name_scope("fc_layer"):
+            shape = [self.dim_proj * self.dimensionality_mult, self.num_classes]
+            W = tf.Variable(
+                tf.truncated_normal(shape, stddev=0.01),
+                name="W_fc_layer")
+            b = tf.Variable(tf.constant(
+                0.1, shape=[self.num_classes]),
+                name="b"
+            )
+            tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
+            self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
+
+
+
+    def attention_old(self, config):
+        ''' old crappy attnetion caclulation '''
         with tf.name_scope("attention_fc_layer"):
             # reshape out put to be [batches, seq_length, word_dimensionality]
             self.output = np.asarray(self.output)
@@ -619,8 +766,11 @@ class RNN_Attention(object):
                                   tf.TensorShape([None, None]),
                                   tf.TensorShape([None, None])]
             )
+            # self.attention_scores = tf.Variable(self.attention_scores, validate_shape=False, name="attention_scores_in_variable")
             tf.add_to_collection(
                     'l1_loss', tf.norm(self.attention_scores, axis=1, ord=2))
+            # attentions_to_tensor = tf.Variable(self.attention_scores, name="tensor_attentions")
+            # tf.add_to_collection('the_attention_scores', self.attention_scores)
             if config['attention_GRU']:
                 with tf.name_scope("attention_GRU"):
                     """ use attention GRU in similar fashion to a DMN
@@ -635,17 +785,18 @@ class RNN_Attention(object):
                             num_units=self.dim_proj * self.dimensionality_mult),
                         input_keep_prob=self.input_keep_prob,
                         output_keep_prob=self.output_keep_prob
-                )
-                rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
-                    [attention_cell] * 1, state_is_tuple=True)
-                initial_state = rnn_cell_seq.zero_state(
-                    self.batch_size, tf.float32)
-                _, c_t = tf.nn.dynamic_rnn(
-                    inputs=inputs, cell=rnn_cell_seq,
-                    sequence_length=self.seq_lengths,
-                    initial_state=initial_state)
-                self.state_ = c_t[-1]
-                # print ("att GRU state_ ", self.state_)
+                    )
+                    rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                        [attention_cell] * 1, state_is_tuple=True)
+                    initial_state = rnn_cell_seq.zero_state(
+                        self.batch_size, tf.float32)
+                    _, c_t = tf.nn.dynamic_rnn(
+                        inputs=inputs, cell=rnn_cell_seq,
+                        sequence_length=self.seq_lengths,
+                        initial_state=initial_state)
+                    self.state_ = c_t[-1]
+
+                    # print ("att GRU state_ ", self.state_)
 
             else:
                 representations_shape = [-1, self.dim_proj * self.dimensionality_mult]
@@ -702,12 +853,12 @@ class RNN_Attention(object):
             self.losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=self.scores, labels=self.y, name="losses")
             self.total_l2_norm = tf.add_n(tf.get_collection('l2_loss'))
-            self.total_l1_norm = tf.reduce_sum(tf.add_n(tf.get_collection('l1_loss')))
-
+            # self.total_l1_norm = tf.reduce_sum(tf.add_n(tf.get_collection('l1_loss')))
+            self.total_l1_norm = 0
             # self.total_loss = tf.reduce_sum(self.losses)
             self.mean_loss = (tf.reduce_mean(self.losses) +
                               self.l2_weight * self.total_l2_norm +
-                              100 * self.total_l1_norm)
+                              10 * self.total_l1_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))
@@ -715,7 +866,13 @@ class RNN_Attention(object):
                 tf.cast(self.correct_predictions, "float"), name="accuracy")
 
         params = tf.trainable_variables()
-        # if self.train_phase:
+        # params = tf.get_collection('l1_loss')
+        params = params + tf.get_collection('the_attention_scores')
+        # params = tf.get_default_graph().get_operations()
+        # print (params)
+        # for par in params:
+        #     print (par.name)
+        # sys.exit()
         with tf.name_scope("train"):
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
         gradients = tf.gradients(self.mean_loss, params)

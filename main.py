@@ -30,7 +30,7 @@ data = dataset.cv_split(index=2)
 # 2 = test
 # 3 = dev
 t1 = dataset.cv_split(index=2)
-t1 = dataset.cv_split(index=3)
+# t1 = dataset.cv_split(index=3)
 t2 = dataset.cv_split(index=1)
 data = [t2[2], t2[3], t1[2], t1[3]]
 # print (len(data[0]), len(data[2]), len(data[1]), len(data[3]))

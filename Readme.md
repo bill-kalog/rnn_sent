@@ -26,7 +26,7 @@ the following hyperparameters can be changed inside `conf.py`
 |--------------|------------|
 |dat_directory| Directory containing datasets (used by datasets.py) |
 |load_last_checkpoint| Path pointing to a directory containing tensorflow checkpoints (used only if `eval` is true) |
-|eval| Choose between building/training a model (`False`) or evaluationg a saved model (`True`) |
+|eval| Choose between building/training a model (`False`) or evaluating a saved model (`True`) |
 |sst_finegrained| Iff you want to use the finegrained version of [SST](https://nlp.stanford.edu/sentiment/index.html) set to `True`, otherwise `False` |
 |classes_num| The number of classes of your dataset |
 |bidirectional| Choose between having a bidirectional sentence encoder or not |
@@ -36,7 +36,7 @@ the following hyperparameters can be changed inside `conf.py`
 |attention| Choose between using tensorflows' attention wrapper for a cell or not (better not use it i.e set to `False`) |
 |use_attention| Use attention weights in the outputs of an RNN |
 |attention_GRU| For an RNN choose between using attention weights in a weighted sum of the outputs fashion or feeding the weights to a GRU like in  [Dynamic Memory Networks for Visual and Textual Question Answering](https://arxiv.org/abs/1603.01417) |
-|split_dev| Choose between feeding the dev set in small batches or as a whole tensor (usefull when dev set is quite big and initializng a whole tensor would require too much memory) |
+|split_dev| Choose between feeding the dev set in small batches or as a whole tensor (usefull when dev set is quite big and initializing a whole tensor would require too much memory) |
 |dev_minibatch| Size of minibatches used for dev set |
 |dim_proj| Dimensionality of word embeddings to be used, it is also the number of units used by a rnn cell (i.e dimensionality of hidden states/output) |
 |layers| number of stacked layer to be used by an RNN encoder |
@@ -56,7 +56,7 @@ the following hyperparameters can be changed inside `conf.py`
 |checkpoint_every| keep a checkpoint of the model being trained every that many steps |
 |save_step| save the word embeddings, to be fed, in tensorboard once after that many steps  |
 |save_step_dev_info| A list containing at which steps to save some information about a model (i.e attention weights on train and dev and  dataframe for plotting in [bokeh](https://github.com/bill-kalog/bokeh_plots)) |
-|std_dev| std for word embedding initialization (currently in code though uncommented initializing word embedding in the interval (-1/(2*d), 1/(2*d)) |
+|std_dev| std for word embedding initialization (currently cmmented out in code though) word embeddings are initialized in the interval (-1/(2*d), 1/(2*d)) |
 |train_embeddings| list of booleans stating whether trainable is going to be set `True` or `False` for the word embeddings (currently support only using one type of word embedding i.e one of the supprted or random. If using pretrained list must have length 2 with second argument set to `None`) |
 |word_vector_type| list of types of pretrained word embeddings to be loaded or empty if using just random  |
 |pretrained_vectors| list of paths for the pretrained vectors or and empty list if using only random |

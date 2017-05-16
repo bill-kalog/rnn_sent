@@ -2,7 +2,7 @@
 config = {
 
     'dat_directory': '../datasets',
-    "load_last_checkpoint": "./runs/1494528591/checkpoints",
+    "load_last_checkpoint": "./runs/1494851176/checkpoints",
     'eval': True,  # train or evaluate model
 
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
@@ -16,11 +16,11 @@ config = {
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN ** BROKEN DOESN'T USE **
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
     'use_attention': True,  # use attention on the rnn outputs
-    'attention_GRU': False,  # for the simple RNN choose between producing the sentence representation through a weighted sum of attention or through an attention GRU as presented in  `Dynamic Memory Networks for Visual and Textual Question Answering`
+    'attention_GRU': True,  # for the simple RNN choose between producing the sentence representation through a weighted sum of attention or through an attention GRU as presented in  `Dynamic Memory Networks for Visual and Textual Question Answering`
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # both word embeding dimension and RNN number of hidden units.
-    'layers': 1,
+    'layers': 2,
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 200,
     'n_words': None,  # Leave as None, dictionary size
@@ -35,8 +35,8 @@ config = {
     'l2_norm_w': 0.000,
 
     # DMN specific
-    'dmn': True,  # use a dynamic memory network
-    'episodes_num': 3,  # number of episodes in episodic module
+    'dmn': False,  # use a dynamic memory network
+    'episodes_num': 1,  # number of episodes in episodic module
 
 
 
