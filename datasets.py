@@ -28,6 +28,9 @@ class Dataset(object):
         if dataset_name.lower() == "sst":  # stanford sentiment treebank
             self.load_sst()
             return
+        if dataset_name.lower() == "sst_phrase": # stanford sentiment treebank trained using all phrases as given in https://github.com/harvardnlp/sent-conv-torch
+            self.load_sst_phrases()
+            return
         elif dataset_name.lower() == "mr":  # movie reviews
             self.load_MR()
         elif dataset_name == "IMDB":  # IMDB dataset maas et al
@@ -147,6 +150,57 @@ class Dataset(object):
                 self.labels_verbose = np.concatenate(
                     [self.labels_verbose, temp])
             self.folds.append(dataset_split[sent_index])
+
+    def load_sst_phrases(self):
+        '''
+        load SST with phrases
+        code is based and data where taken
+        from https://github.com/harvardnlp/sent-conv-torch
+        '''
+        self.labels = np.array([])
+        self.labels_verbose = None
+        self.dataset = []
+        parent_folder = os.path.join(config['dat_directory'],
+                                     'sst_phrase')
+        paths = {"SST1": ("stsa.fine.phrases.train",
+                          "stsa.fine.test"
+                          "stsa.fine.dev",
+                          ),
+                 "SST2": ("stsa.binary.phrases.train",
+                          "stsa.binary.test",
+                          "stsa.binary.dev",
+                          )
+                 }
+        if config['sst_finegrained']:
+            version_ = "SST1"
+        else:
+            version_ = "SST2"
+        f_names = [os.path.join(parent_folder, file_)
+                   for file_ in paths[version_]]
+        self.dataset = []
+        self.labels_verbose = None
+        self.tokenized = []
+        self.folds = []
+        for num_, fold_ in enumerate(f_names):
+            with io.open(
+                    fold_, "r", encoding="utf-8", errors='ignore') as data_:
+                for line in data_:
+                    label, phrase_ = [int(line[0]), line[2:]]
+                    self.dataset.append(phrase_)
+                    phrase_ = process_utils.clean_str_sst(phrase_)
+                    self.tokenized.append(phrase_)
+
+                    if config["sst_finegrained"]:
+                        temp = np.zeros((1, 5))
+                    else:
+                        temp = np.zeros((1, 2))
+                    temp[0][label] = 1
+                    if self.labels_verbose is None:
+                        self.labels_verbose = temp
+                    else:
+                        self.labels_verbose = np.concatenate(
+                            [self.labels_verbose, temp])
+                    self.folds.append(num_ + 1)
 
     def load_IMDB(self):
         self.labels = np.array([])

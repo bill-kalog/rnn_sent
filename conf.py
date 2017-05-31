@@ -2,8 +2,8 @@
 config = {
 
     'dat_directory': '../datasets',
-    "load_last_checkpoint": "./runs/1494851176/checkpoints",
-    'eval': True,  # train or evaluate model
+    "load_last_checkpoint": "./runs/1495382262/checkpoints",
+    'eval': False,  # train or evaluate model
 
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 2,  # number of classes
@@ -32,11 +32,11 @@ config = {
     'keep_prob_out': .5,
     # 'keep_prob_inp': 1.,
     # 'keep_prob_out': 1.,
-    'l2_norm_w': 0.000,
+    'l2_norm_w': 0.00,
 
     # DMN specific
     'dmn': False,  # use a dynamic memory network
-    'episodes_num': 1,  # number of episodes in episodic module
+    'episodes_num': 2,  # number of episodes in episodic module
 
 
 

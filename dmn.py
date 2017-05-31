@@ -370,7 +370,7 @@ class DMN(object):
             # self.total_loss = tf.reduce_sum(self.losses)
             self.mean_loss = (tf.reduce_mean(self.losses) +
                               self.l2_weight * self.total_l2_norm +
-                              10 * self.total_l1_norm)
+                              0 * self.total_l1_norm)
         with tf.name_scope("accuracy"):
             self.correct_predictions = tf.equal(
                 self.predictions, tf.argmax(self.y, 1))

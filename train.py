@@ -213,16 +213,16 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 save_dev_summary(
                     x_dev, y_dev, dx_dev,
                     "metrics_step_{}.pkl".format(current_step))
-                save_dev_summary(
-                    x_train, y_train, dx_train,
-                    "metrics_train_step_{}.pkl".format(current_step))
+                # save_dev_summary(
+                #     x_train, y_train, dx_train,
+                #     "metrics_train_step_{}.pkl".format(current_step))
             if config["use_attention"]:
                 get_attention_weights(
                     x_dev, y_dev, dx_dev,
                     "attention_step_{}".format(current_step))
-                get_attention_weights(
-                    x_train, y_train, dx_train,
-                    "attention_train_step_{}".format(current_step))
+                # get_attention_weights(
+                #     x_train, y_train, dx_train,
+                #     "attention_train_step_{}".format(current_step))
             # sys.exit(0)
 
     def dev_step(x_batch, y_batch):
@@ -371,20 +371,9 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                                     for j in range(num_episodes)]
                             sentence_scores.append(attentions)
                         sentences_in_batch.append(sentence_scores)
-                    
-                    # print ("---------------------------")
-                    # print (len(sentences_in_batch))
-                    # print (sentences_in_batch[0])
-                    # print (len(sentences_in_batch[0]))
-                    # print (len(sentences_in_batch), len(sentences_in_batch[0]), len(sentences_in_batch[0][0]))
-                    # print (scores_combo[1])
-                    # print (scores[1])
-                    # print (a, a.shape)
-                    # for cc in range(100):
-                    #     print(np.sum(scores[0][cc][:]), seq_lengths[cc])
+
                     scores_list += sentences_in_batch
 
-                    # sys.exit()
                 else:
                     output_ = [network.attention_scores, network.seq_lengths]
                     scores, seq_lengths = sess.run(

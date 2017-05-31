@@ -2,12 +2,14 @@ import tensorflow as tf
 from conf import config
 from datasets import Dataset
 from word_vectors import WordVectors
+import numpy as np
 import train
 import evaluate
 import sys
 
 
-dataset = Dataset("SST")
+# dataset = Dataset("SST")
+dataset = Dataset("SST_phrase")
 # dataset = Dataset("IMDB", preprocess=True)
 # dataset = Dataset("MR", preprocess=True)
 
@@ -33,10 +35,29 @@ t1 = dataset.cv_split(index=2)
 # t1 = dataset.cv_split(index=3)
 t2 = dataset.cv_split(index=1)
 data = [t2[2], t2[3], t1[2], t1[3]]
+# t_test_x = ["whether you 're moved", "whether you 're moved and love it" ,"whether you 're moved and love it , or bored", "whether you 're moved and love it , or bored or frustrated about the film", "whether you 're moved and love it , or bored or frustrated about the film , you 'll still feel something", "you 'll still feel something"]
+# t_test_y = np.asarray([[1., 0.]] * 6)
+
+# t_test_x = ["i like it", "i like it a lot !", "i hate it", "I hate it so much",
+#             "the movie is good", "the movie is incredibly good", "good",
+#             "not good", "bad", "not bad", "like", "n't like",
+#             "i hate the movie though the plot is interesting",
+#             "i like the movie though the plot is boring"]
+
+# neg_ = [1., 0.]
+# pos_ = [0., 1.]
+# labels_ = [pos_, pos_, neg_, neg_, pos_, pos_, pos_, neg_,
+#            neg_, pos_, pos_, neg_, neg_, pos_]
+# t_test_y = np.asarray(labels_)
+# data = [t2[2], t2[3], t_test_x, t_test_y]
+
+
 # print (len(data[0]), len(data[2]), len(data[1]), len(data[3]))
 # sys.exit()
 
-
+# print (data[2][1])
+# print (data[3][1])
+# sys.exit()
 # dataset_1 = Dataset("MR", preprocess=True)
 # sp_1 = dataset_1.cv_split(index=5)
 

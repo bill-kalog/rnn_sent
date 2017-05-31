@@ -126,6 +126,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         path_ = os.path.join(out_dir, filename)
         scores_list = []
         seq_length_list = []
+        y_net = []
         if saved_conf['split_dev']:
             mini_size = saved_conf['dev_minibatch']
             for i in range(0, len(x_batch), mini_size):
@@ -145,8 +146,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                 #            network.probs, network.state_]
                 if saved_conf["dmn"]:
                     num_episodes = saved_conf['episodes_num']
-                    output_ = [graph_all_attentions, graph_seq_lengths]
-                    scores, seq_lengths = sess.run(
+                    output_ = [graph_predictions, graph_all_attentions, graph_seq_lengths]
+                    predictions, scores, seq_lengths = sess.run(
                         output_, feed_dict)
                     sentences_in_batch = []
                     for i in range(len(mini_x_batch)):
@@ -158,14 +159,16 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                         sentences_in_batch.append(sentence_scores)
 
                     scores_list += sentences_in_batch
+                    y_net += predictions.tolist()
 
                     # sys.exit()
                 else:
-                    output_ = [graph_attention_scores, graph_seq_lengths]
-                    scores, seq_lengths = sess.run(
+                    output_ = [graph_predictions, graph_attention_scores, graph_seq_lengths]
+                    predictions, scores, seq_lengths = sess.run(
                         output_, feed_dict)
                     print (len(scores.tolist()))
                     scores_list += scores.tolist()
+                    y_net += predictions.tolist()
                 # print ("seqeunce len ------------", scores, scores.tolist())
                 seq_length_list += seq_lengths.tolist()
             # print (len(scores_list))
@@ -216,7 +219,9 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                     word_to_id[word], 0) + 1
                 word_id_to_prob_sum[word_to_id[word]] = word_id_to_prob_sum.get(
                     word_to_id[word], 0.0) + np.sum(scores_list[i][index_])
-
+            # print (y_net)
+            # print (y_net[i])
+            # sys.exit()
             dic_['sent_id_' + str(i)] = {
                 "mappings": temp,
                 "prob_sum": sum_,
@@ -224,6 +229,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                 # "sent2num": x_batch[i].tolist(),
                 "reversed": reversed_text,
                 "sentence": x_strings_batch[i],
+                "true_label": int(np.argmax(y_batch[i])),
+                "predicted_label": int(y_net[i])
             }
 
         # sort dictionaries by word_id values
@@ -330,7 +337,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     # load model
     last_model = tf.train.latest_checkpoint(checkpoint_paths)
     # or get model from specific run
-    num_ = 1500
+    # num_ = 1200
+    num_ = 1200
     if num_ is not None:
         temp = last_model[:last_model.find("model-") + len("model-")]
         last_model = "{}{}".format(temp, num_)
@@ -359,6 +367,13 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     graph_accuracy = g.get_operation_by_name("accuracy/accuracy").outputs[0]
 
     test_step(x_test, y_test)
+    # get operations for prediction
+    graph_predictions = g.get_operation_by_name(
+        "predict/ArgMax").outputs[0]
+    graph_true_predictions = g.get_operation_by_name(
+        "predict/ArgMax_1").outputs[0]
+    graph_probs = g.get_operation_by_name(
+        "predict/Softmax").outputs[0]
     if saved_conf["use_attention"] or saved_conf["attention_GRU"] or use_dmn:
         # retrieve approriate operations_by_name
         if use_dmn:
@@ -379,13 +394,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                 "calc_sequences_length/Max").outputs[0]
         get_attention_weights(x_test, y_test, dx_test, "attention_test_")
 
-    # get operations for prediction
-    graph_predictions = g.get_operation_by_name(
-        "predict/ArgMax").outputs[0]
-    graph_true_predictions = g.get_operation_by_name(
-        "predict/ArgMax_1").outputs[0]
-    graph_probs = g.get_operation_by_name(
-        "predict/Softmax").outputs[0]
+
     # TODO saveing for lstm without attentions
     if use_dmn:
         if saved_conf['episodes_num'] == 1:

@@ -498,7 +498,8 @@ class RNN_Attention(object):
             self.output = output
 
         # self.attention_old(config)
-        self.attention(config)
+        self.attention_old(config)
+        # self.attention(config)
 
     def attention(self, config):
         with tf.name_scope("attention_fc_layer"):
