@@ -71,6 +71,9 @@ def init_embeddings(config, pretrained_embeddings, vocabulary):
 
 
 def set_train(sess, config, data, pretrained_embeddings=[]):
+    best_achieved_accuracy = 0  # best achieved vlaidation accuracy
+    epochs_best_acc_not_changed = 0  # number of epochs that the best accuracy hasn't improved
+    candidate_accuracy = 0  # accuracy at current step
 
     dx_train, y_train, dx_dev, y_dev = data
 
@@ -116,9 +119,12 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
     # checkpoints
     checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
     checkpoint_prefix = os.path.join(checkpoint_dir, "model")
+    best_models_dir = os.path.abspath(os.path.join(out_dir, "best_snaps"))
+    best_models_prefix = os.path.join(best_models_dir, "model")
     # Tensorflow assumes this directory already exists so we need to create it
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
+        os.makedirs(best_models_dir)
     save_snap = tf.train.Saver(tf.global_variables(), max_to_keep=None)
 
     # Write vocabulary
@@ -216,7 +222,7 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                 # save_dev_summary(
                 #     x_train, y_train, dx_train,
                 #     "metrics_train_step_{}.pkl".format(current_step))
-            if config["use_attention"]:
+            if config["use_attention"] or config["dmn"]:
                 get_attention_weights(
                     x_dev, y_dev, dx_dev,
                     "attention_step_{}".format(current_step))
@@ -278,6 +284,8 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         time_str = datetime.datetime.now().isoformat()
         print("{}: step {}, loss {}, acc {}, b_len {}\n".format(
             time_str, current_step, loss, accuracy, len(x_batch)))
+        global candidate_accuracy
+        candidate_accuracy = accuracy
         # if writer:
         #     writer.add_summary(summaries, step)
 
@@ -331,7 +339,6 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
         #     network.setBatchSize(len(x_batch))
         # print ("New batch size {}".format(network.batch_size))
         return feed_dict
-
 
     def get_attention_weights(x_batch, y_batch, x_strings_batch, filename):
         '''
@@ -548,16 +555,21 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             x_strings_batch, true_labels, y_net, prob_net, layer, path_)
 
     # Generate batches
-    print ("About to build batches for x:{} with number of words".format(
+    print ("About to build batches for x:{} with number of words {}".format(
         len(x_train), config['n_words']))
     batches = process_utils.batch_iter(
         list(zip(x_train, y_train)), config['batch_size'], config['n_epochs'])
+
+    batches_per_epoc = int((len(x_train) - 1) / config['batch_size']) + 1
 
     conf_path = os.path.abspath(os.path.join(out_dir, "config.json"))
     json.dump(config, open(conf_path, 'w'), indent="\t")
     print("Saved configuration file at: {}".format(conf_path))
 
     print ("train loop starting for every batch")
+    global candidate_accuracy
+    global best_achieved_accuracy
+    global epochs_best_acc_not_changed
     for iter_, batch in enumerate(batches):
         x_batch, y_batch = zip(*batch)
         train_step(x_batch, y_batch, iter_)
@@ -565,3 +577,27 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
             # network.save(sess, checkpoint_prefix, iter_)
             s_path = save_snap.save(sess, checkpoint_prefix, global_step=iter_)
             print ("Saved model snapshot in {}\n".format(s_path))
+
+        # check for early stopping
+        burn_in_period = batches_per_epoc * 0.5
+        print ("burn_in_period {}, mod_calc {}, cand_acc {}, b_acc {}, iter {}, ep_not changed {}".format(
+            burn_in_period, (iter_ + 1) % config['evaluate_every'],
+            candidate_accuracy, best_achieved_accuracy, iter_ + 1, epochs_best_acc_not_changed))
+        if (iter_ + 1) % batches_per_epoc == 0:
+            epochs_best_acc_not_changed += 1
+        if iter_ > burn_in_period and (iter_ + 1) % config['evaluate_every'] == 0:
+
+            if candidate_accuracy > best_achieved_accuracy:
+                s_path = save_snap.save(
+                    sess, best_models_prefix, global_step=(iter_ + 1))
+                print ("---- New best validation accuracy achieved!! ----")
+                best_achieved_accuracy = candidate_accuracy
+                epochs_best_acc_not_changed = 0
+            if epochs_best_acc_not_changed > 21:
+                print (
+                    "early stopping, model hasn't improved for 20 epochs..."
+                    "best achieved validation accuracy {}".format(
+                        best_achieved_accuracy))
+                break
+
+

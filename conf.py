@@ -41,12 +41,12 @@ config = {
 
 
     # train procedure specific
-    'evaluate_every': 20,  # evaluate on dev set
-    'checkpoint_every': 50,  # keep a model checkpoint every 50 steps
+    'evaluate_every': 1,  # evaluate on dev set
+    'checkpoint_every': 500,  # keep a model checkpoint every 50 steps
 
     'save_step': 800,  # save word embeddings
     # 'save_step_dev_info': [2, 50, 100, 500, 800, 1200, 1500, 2000, 4000],
-    'save_step_dev_info': [50, 100, 500, 800, 1000, 1200, 1500, 1700, 2000, 2500, 4000],
+    'save_step_dev_info': [50, 100, 500, 800, 1000, 1200, 1500, 1700, 2000, 2500, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000],
 
     # 'save_step_dev_info': [1500, 2000, 4000],
 

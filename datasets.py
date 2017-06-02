@@ -163,7 +163,7 @@ class Dataset(object):
         parent_folder = os.path.join(config['dat_directory'],
                                      'sst_phrase')
         paths = {"SST1": ("stsa.fine.phrases.train",
-                          "stsa.fine.test"
+                          "stsa.fine.test",
                           "stsa.fine.dev",
                           ),
                  "SST2": ("stsa.binary.phrases.train",
