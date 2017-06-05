@@ -2,7 +2,8 @@
 config = {
 
     'dat_directory': '../datasets',
-    "load_last_checkpoint": "./runs/1495382262/checkpoints",
+    # "load_last_checkpoint": "./runs/1496428547/checkpoints",
+    "load_last_checkpoint": "./runs/1496431924/best_snaps",
     'eval': False,  # train or evaluate model
 
     'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes

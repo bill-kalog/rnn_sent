@@ -498,8 +498,8 @@ class RNN_Attention(object):
             self.output = output
 
         # self.attention_old(config)
-        self.attention_old(config)
-        # self.attention(config)
+        # self.attention_old(config)
+        self.attention(config)
 
     def attention(self, config):
         with tf.name_scope("attention_fc_layer"):
@@ -608,26 +608,37 @@ class RNN_Attention(object):
                 g_tensor = tf.reshape(g_tensor, [-1, self.sentence_len])
                 self.attention_scores = g_tensor
 
-            with tf.name_scope("attention_GRU"):
-                self.attention_scores_exp = tf.expand_dims(
-                    self.attention_scores, axis=-1)
-                inputs = tf.concat(
-                    [self.attention_input, self.attention_scores_exp], 2)
-                attention_cell = tf.contrib.rnn.DropoutWrapper(
-                    AttentionBasedGRUCell(
-                        num_units=self.dim_proj * self.dimensionality_mult),
-                    input_keep_prob=self.input_keep_prob,
-                    output_keep_prob=self.output_keep_prob
-                )
-                rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
-                    [attention_cell] * 1, state_is_tuple=True)
-                initial_state = rnn_cell_seq.zero_state(
-                    self.batch_size, tf.float32)
-                _, c_t = tf.nn.dynamic_rnn(
-                    inputs=inputs, cell=rnn_cell_seq,
-                    sequence_length=self.seq_lengths,
-                    initial_state=initial_state)
-                self.state_ = c_t[-1]
+            if config['attention_GRU']:
+                with tf.name_scope("attention_GRU"):
+                    self.attention_scores_exp = tf.expand_dims(
+                        self.attention_scores, axis=-1)
+                    inputs = tf.concat(
+                        [self.attention_input, self.attention_scores_exp], 2)
+                    attention_cell = tf.contrib.rnn.DropoutWrapper(
+                        AttentionBasedGRUCell(
+                            num_units=self.dim_proj * self.dimensionality_mult),
+                        input_keep_prob=self.input_keep_prob,
+                        output_keep_prob=self.output_keep_prob
+                    )
+                    rnn_cell_seq = tf.contrib.rnn.MultiRNNCell(
+                        [attention_cell] * 1, state_is_tuple=True)
+                    initial_state = rnn_cell_seq.zero_state(
+                        self.batch_size, tf.float32)
+                    _, c_t = tf.nn.dynamic_rnn(
+                        inputs=inputs, cell=rnn_cell_seq,
+                        sequence_length=self.seq_lengths,
+                        initial_state=initial_state)
+                    self.state_ = c_t[-1]
+            else:  # calculate representation as a weighted sum
+                with tf.name_scope("attention_weighted_sum"):
+                    attention_expanded = tf.expand_dims(
+                        self.attention_scores, -1)
+                    self.state_ = tf.reduce_sum(
+                        tf.multiply(
+                            self.attention_input, attention_expanded), 1)
+
+                    # print (self.state_)
+                    # sys.exit()
 
         with tf.name_scope("drop_out"):
             self.l_drop = tf.nn.dropout(
@@ -644,8 +655,6 @@ class RNN_Attention(object):
             )
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             self.scores = tf.nn.xw_plus_b(self.l_drop, W, b)
-
-
 
     def attention_old(self, config):
         ''' old crappy attnetion caclulation '''

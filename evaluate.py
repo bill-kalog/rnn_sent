@@ -338,7 +338,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     last_model = tf.train.latest_checkpoint(checkpoint_paths)
     # or get model from specific run
     # num_ = 1200
-    num_ = 1200
+    # num_ = 1200
+    num_ = None
     if num_ is not None:
         temp = last_model[:last_model.find("model-") + len("model-")]
         last_model = "{}{}".format(temp, num_)

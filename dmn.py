@@ -179,6 +179,9 @@ class DMN(object):
             # initial state is the last memory
             # initial_state = self.last_memory
             self.state_ = self.last_memory
+            with tf.name("drop_out_anwer"):
+                self.ans_drop = tf.nn.dropout(
+                    self.state_, self.dropout_prob, name="drop_out_answer")
             shape = [int(self.last_memory.shape[1]), self.num_classes]
             W = tf.Variable(
                 tf.truncated_normal(shape, stddev=0.01), name="W_answer",
@@ -187,7 +190,7 @@ class DMN(object):
                 0.1, shape=[self.num_classes]),
                 trainable=True, name="b_answer"
             )
-            self.scores = tf.nn.xw_plus_b(self.state_, W, b)
+            self.scores = tf.nn.xw_plus_b(self.ans_drop, W, b)
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
 
     def attention(self, facts, question, prev_memory, ep_number):
@@ -335,8 +338,10 @@ class DMN(object):
                 initializer=tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.1, shape=[self.dim_proj * self.dimensionality_mult]),
                             name="b_mem_update_{}".format(ep_number))
-            new_memory = tf.nn.relu(
-                tf.nn.xw_plus_b(c_input, W, b))
+            # new_memory = tf.nn.relu(
+            #     tf.nn.xw_plus_b(c_input, W, b))
+            new_memory = tf.nn.tanh(
+                tf.nn.xw_plus_b(input, W, b))
             # print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             return new_memory
