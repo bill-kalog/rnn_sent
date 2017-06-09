@@ -19,6 +19,21 @@ import re
 
 def eval_model(sess, g, checkpoint_paths, data, config):
 
+    def save_embeddings(embd_matrix):
+        vocab_dict = vc_processor.vocabulary_._mapping
+        sorted_vocab = sorted(vocab_dict.items(), key=lambda x: x[1])
+        vocabulary = list(list(zip(*sorted_vocab))[0])
+        embd_file_path = os.path.join(out_dir, "words_embds.csv")
+        with open(embd_file_path, "w") as embd_file:
+            for index_, word in enumerate(vocabulary):
+                word_repr = ' '.join(
+                    str(dim_) for dim_ in embd_matrix[index_])
+                embd_file.write('{} {}\n'.format(word, word_repr))
+        print ("Saved words at: {}".format(embd_file_path))
+        sys.exit()
+
+
+
     def test_step(x_batch, y_batch):
         if config['split_dev']:  # will need to split dev set to smaller chunks
             mini_size = config['dev_minibatch']
@@ -269,6 +284,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         prob_net = []
         layer = []
         true_labels = []
+        flag_ = True
         if config['split_dev']:
             mini_size = config['dev_minibatch']
             for i in range(0, len(x_batch), mini_size):
@@ -285,9 +301,12 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                     dropouts, reg_metrics, question)
 
                 output_ = [graph_predictions, graph_true_predictions,
-                           graph_probs, graph_state_]
-                predictions, true_pred, probs, fc_layer = sess.run(
+                           graph_probs, graph_state_, graph_embeddings]
+                predictions, true_pred, probs, fc_layer, embds_ = sess.run(
                     output_, feed_dict)
+                if flag_:  # save word_embeddings
+                    flag_ = False
+                    save_embeddings(embds_)
 
                 prob_net += probs.tolist()
                 layer += fc_layer.tolist()
@@ -375,6 +394,8 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         "predict/ArgMax_1").outputs[0]
     graph_probs = g.get_operation_by_name(
         "predict/Softmax").outputs[0]
+    graph_embeddings = g.get_operation_by_name(
+        "W0_0/read").outputs[0]
     if saved_conf["use_attention"] or saved_conf["attention_GRU"] or use_dmn:
         # retrieve approriate operations_by_name
         if use_dmn:
@@ -399,8 +420,10 @@ def eval_model(sess, g, checkpoint_paths, data, config):
     # TODO saveing for lstm without attentions
     if use_dmn:
         if saved_conf['episodes_num'] == 1:
+            # graph_state_ = g.get_operation_by_name(
+            #     "episodic_module/memory_update/Relu").outputs[0]
             graph_state_ = g.get_operation_by_name(
-                "episodic_module/memory_update/Relu").outputs[0]
+                "episodic_module/memory_update/Tanh").outputs[0]
         else:
             graph_state_ = g.get_operation_by_name(
                 "episodic_module/memory_update_{}/Relu".format(

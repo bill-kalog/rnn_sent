@@ -580,9 +580,13 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
 
         # check for early stopping
         burn_in_period = batches_per_epoc * 0.5
-        print ("burn_in_period {}, mod_calc {}, cand_acc {}, b_acc {}, iter {}, ep_not changed {}".format(
-            burn_in_period, (iter_ + 1) % config['evaluate_every'],
-            candidate_accuracy, best_achieved_accuracy, iter_ + 1, epochs_best_acc_not_changed))
+        print (
+            "burn_in_period {}, mod_calc {}, cand_acc {}, b_acc {}, iter {}, "
+            "ep_not changed {}".format(
+                burn_in_period, (iter_ + 1) % config['evaluate_every'],
+                candidate_accuracy, best_achieved_accuracy, iter_ + 1,
+                epochs_best_acc_not_changed)
+        )
         if (iter_ + 1) % batches_per_epoc == 0:
             epochs_best_acc_not_changed += 1
         if iter_ > burn_in_period and (iter_ + 1) % config['evaluate_every'] == 0:
@@ -599,5 +603,3 @@ def set_train(sess, config, data, pretrained_embeddings=[]):
                     "best achieved validation accuracy {}".format(
                         best_achieved_accuracy))
                 break
-
-

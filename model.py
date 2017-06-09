@@ -430,6 +430,8 @@ class RNN_Attention(object):
                 initializer=tf.constant_initializer(
                     np.array(self.word_vectors[index_]))
             )
+            print (self.w_embeddings, " embdifingsf")
+            sys.exit()
             embedded_tokens = tf.nn.embedding_lookup(
                 self.w_embeddings, self.x)
             print("emb_tokens {} rnn_input  ".format(embedded_tokens.shape))

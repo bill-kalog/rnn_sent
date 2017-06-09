@@ -28,6 +28,8 @@ class WordVectors(object):
             self.load_fastText()
         if method.lower() == "levy":
             self.load_levy()
+        if method.lower() == "from_model":
+            self.load_glove()
 
     def load_glove(self):
         '''

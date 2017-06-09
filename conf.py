@@ -3,11 +3,11 @@ config = {
 
     'dat_directory': '../datasets',
     # "load_last_checkpoint": "./runs/1496428547/checkpoints",
-    "load_last_checkpoint": "./runs/1496431924/best_snaps",
-    'eval': False,  # train or evaluate model
+    "load_last_checkpoint": "./runs/1496969351/best_snaps",
+    'eval': True,  # train or evaluate model
 
-    'sst_finegrained': False,  # used only when/if loading SST choooses [5, 2] classes
-    'classes_num': 2,  # number of classes
+    'sst_finegrained': True,  # used only when/if loading SST choooses [5, 2] classes
+    'classes_num': 5,  # number of classes
 
     'bidirectional': True,  # bidirectional rnn or not
     'GRU': True,  # chose between GRU or LSTM, seems to work
@@ -36,8 +36,8 @@ config = {
     'l2_norm_w': 0.00,
 
     # DMN specific
-    'dmn': False,  # use a dynamic memory network
-    'episodes_num': 2,  # number of episodes in episodic module
+    'dmn': True,  # use a dynamic memory network
+    'episodes_num': 1,  # number of episodes in episodic module
 
 
 
@@ -62,9 +62,21 @@ config = {
     'word_vector_type': ['glove'],
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
+    'train_embeddings': [True, None],
+    'word_vector_type': ['W2V'],
+    'pretrained_vectors': ['../datasets/w2vec/GoogleNews-vectors-negative300' +
+                           '.bin'],
+
     # random vectors only
     # 'train_embeddings': [True],
     # 'word_vector_type': [],
     # 'pretrained_vectors': [],
+    # 'word_vector_type': ['glove', 'fastText', 'W2V', 'levy'],
+    # 'pretrained_vectors': [
+    #                        '../datasets/glove_6B/glove.6B.300d.txt',
+    #                        '../datasets/fastText/wiki.en.vec',
+    #                        '../datasets/w2vec/GoogleNews-vectors-negative300' +
+    #                        '.bin',
+    #                        '../datasets/levy/bow5.words'],
 
 }

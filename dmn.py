@@ -179,7 +179,7 @@ class DMN(object):
             # initial state is the last memory
             # initial_state = self.last_memory
             self.state_ = self.last_memory
-            with tf.name("drop_out_anwer"):
+            with tf.name_scope("drop_out_anwer"):
                 self.ans_drop = tf.nn.dropout(
                     self.state_, self.dropout_prob, name="drop_out_answer")
             shape = [int(self.last_memory.shape[1]), self.num_classes]
@@ -341,7 +341,7 @@ class DMN(object):
             # new_memory = tf.nn.relu(
             #     tf.nn.xw_plus_b(c_input, W, b))
             new_memory = tf.nn.tanh(
-                tf.nn.xw_plus_b(input, W, b))
+                tf.nn.xw_plus_b(c_input, W, b))
             # print ("W:{} \n b:{} \n new memory:{} \n".format(W, b, new_memory))
             tf.add_to_collection('l2_loss', tf.nn.l2_loss(W))
             return new_memory
