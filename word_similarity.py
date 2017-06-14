@@ -43,7 +43,8 @@ def normalise_word_vectors(word_vectors, norm_=1.0):
     return word_vectors
 
 
-def evaluate_similarity(word_vectors, language="english", source="simlex"):
+def evaluate_similarity(
+        word_vectors, language="english", source="simlex", dictionary_=None):
     """
     This method computes the Spearman's rho correlation (with p-value) of the supplied word vectors. 
     The method also prints the gold standard SimLex-999 ranking to results/simlex_ranking.txt, 
@@ -57,6 +58,32 @@ def evaluate_similarity(word_vectors, language="english", source="simlex"):
         fread_simlex = codecs.open(
             data_dir +
             "/evaluation/simlex-" + language + ".txt", 'r', 'utf-8')
+    elif source == "MEN":
+        fread_simlex = codecs.open(
+            data_dir +
+            "/evaluation/MEN/MEN_dataset_natural_form_full", 'r', 'utf-8')
+    elif source == "rw":
+        fread_simlex = codecs.open(
+            data_dir +
+            "/evaluation/rw/rw.txt", 'r', 'utf-8')
+    elif source == "SimVerb":
+        fread_simlex = codecs.open(
+            data_dir +
+            "/evaluation/data/SimVerb-3500.txt", 'r', 'utf-8')
+        relations = ["SYNONYMS", "ANTONYMS", "HYPER/HYPONYMS",
+                     "COHYPONYMS", "NONE"]
+        temp_fread_simlex = []
+        if language in relations:  # used language as a relation type [bad:(]
+            for line in fread_simlex:
+                tokens = line.split("\t")
+                # print ("{}--{}".format(tokens[4], language))
+                # print ("{}--{}".format(tokens[4].strip(), language))
+                # sys.exit()
+                if tokens[4].strip() == language:
+                    pair = "{}\t{}\t{}\t{}".format(
+                        tokens[0], tokens[1], tokens[2], float(tokens[3]))
+                    temp_fread_simlex.append(pair)
+            fread_simlex = temp_fread_simlex
     else:
         fread_simlex = codecs.open(
             data_dir +
@@ -66,9 +93,15 @@ def evaluate_similarity(word_vectors, language="english", source="simlex"):
     line_number = 0
     for line in fread_simlex:
 
-        if line_number > 0:
+        if line_number > 0 or source in ["MEN", "rw", "simVerb"]:
             total_num_pairs += 1
-            tokens = line.split()
+            if source == "rw":
+                tokens = line.split("\t")  # rw is tab delimited
+            elif source == "SimVerb":
+                tokens = line.split("\t")
+                tokens[2] = tokens[3]
+            else:
+                tokens = line.split()
             word_i = tokens[0].lower()
             word_j = tokens[1].lower()
             score = float(tokens[2])
@@ -76,12 +109,16 @@ def evaluate_similarity(word_vectors, language="english", source="simlex"):
             # word_i = lp_map[language] + word_i
             # word_j = lp_map[language] + word_j
             # print (word_i, word_j)
-            if (
-                word_i in word_vectors.word_to_index and
-                    word_j in word_vectors.word_to_index):
-                pair_list.append(((word_i, word_j), score))
+            if dictionary_ is not None:
+                if (
+                    word_i in dictionary_ and
+                        word_j in dictionary_):
+                    pair_list.append(((word_i, word_j), score))
             else:
-                pass
+                if (
+                    word_i in word_vectors.word_to_index and
+                        word_j in word_vectors.word_to_index):
+                    pair_list.append(((word_i, word_j), score))
         line_number += 1
 
     pair_list.sort(key=lambda x: - x[1])
@@ -137,17 +174,20 @@ def main():
     # load from evaulation path
     type_ = "from_model"
     # words_path = "./runs/1496739336/evaluations/1496933648/words_embds.csv"
-    words_path = "./runs/1496969351/best_snaps/../evaluations/1497016586/words_embds.csv"
+    # words_path = "./runs/1496969351/best_snaps/../evaluations/1497016586/words_embds.csv"
+    # words_path = "./runs/1497028147/best_snaps/../evaluations/1497092785/words_embds.csv"
+    words_path = "./runs/1497313304/best_snaps/../evaluations/1497438814/words_embds.csv"
     pretrained_vectors.append(WordVectors(
         type_, words_path))
     config['word_vector_type'].append(type_)
+    flag_ = True
 
 
 
     for vec_num_, word_vectors in enumerate(pretrained_vectors):
         # print (word_vectors.dictionary)
         # print (word_vectors.vectors[0])
-
+        # print (word_vectors.word_to_index["sermonize"], "seromnize")
         print("\n============= Evaluating word vectors: {} for language: {}"
               " =============\n".format(
                   config['word_vector_type'][vec_num_], (language)))
@@ -168,6 +208,65 @@ def main():
         print ("WordSim Similarity score and coverage:", c2, cov2)
         print ("WordSim Relatedness score and coverage:", c3, cov3, "\n")
 
+        men_score, men_coverage = evaluate_similarity(
+            word_vectors, language, source="MEN")
+        print ("MEN score and coverage:", men_score, men_coverage, "\n")
+
+        # SimVerb
+        sim_relations = ["SYNONYMS", "ANTONYMS", "HYPER/HYPONYMS",
+                         "COHYPONYMS", "NONE", "ALL"]
+        for relation_ in sim_relations:
+            sv_score, sv_coverage = evaluate_similarity(
+                word_vectors, relation_, source="SimVerb")
+            print (
+                "SimVerb {} score and coverage: {} {}".format(
+                    relation_, sv_score, sv_coverage))
+        print ("\n")
+        rw_score, rw_coverage = evaluate_similarity(
+            word_vectors, language, source="rw")
+        print ("RW score and coverage:", rw_score, rw_coverage)
+
+    if flag_:
+        print ("\n======== Evaluating only words from specified dictionary ========\n")
+        for vec_num_, word_vectors in enumerate(pretrained_vectors[:-1]):
+            dic_ = pretrained_vectors[-1].word_to_index
+            simlex_score, simlex_coverage = evaluate_similarity(
+                word_vectors, language, dictionary_=dic_)
+            print ("SimLex-999 score and coverage:", simlex_score, simlex_coverage)
+            # sys.exit()
+
+            # WordSim Validation scores:
+            c1, cov1 = evaluate_similarity(
+                word_vectors, language, source=language,
+                dictionary_=dic_)
+            c2, cov2 = evaluate_similarity(
+                word_vectors, language, source=language + "-sim",
+                dictionary_=dic_)
+            c3, cov3 = evaluate_similarity(
+                word_vectors, language, source=language + "-rel",
+                dictionary_=dic_)
+            print ("WordSim overall score and coverage:", c1, cov1)
+            print ("WordSim Similarity score and coverage:", c2, cov2)
+            print ("WordSim Relatedness score and coverage:", c3, cov3, "\n")
+
+            men_score, men_coverage = evaluate_similarity(
+                word_vectors, language, source="MEN", dictionary_=dic_)
+            print ("MEN score and coverage:", men_score, men_coverage, "\n")
+
+            # SimVerb
+            sim_relations = ["SYNONYMS", "ANTONYMS", "HYPER/HYPONYMS",
+                             "COHYPONYMS", "NONE", "ALL"]
+            for relation_ in sim_relations:
+                sv_score, sv_coverage = evaluate_similarity(
+                    word_vectors, relation_, source="SimVerb",
+                    dictionary_=dic_)
+                print (
+                    "SimVerb {} score and coverage: {} {}".format(
+                        relation_, sv_score, sv_coverage))
+            print ("\n")
+            rw_score, rw_coverage = evaluate_similarity(
+                word_vectors, language, source="rw", dictionary_=dic_)
+            print ("RW score and coverage:", rw_score, rw_coverage)
 
 if __name__ == '__main__':
     main()

@@ -3,8 +3,8 @@ config = {
 
     'dat_directory': '../datasets',
     # "load_last_checkpoint": "./runs/1496428547/checkpoints",
-    "load_last_checkpoint": "./runs/1496969351/best_snaps",
-    'eval': True,  # train or evaluate model
+    "load_last_checkpoint": "./runs/1497313304/best_snaps",
+    'eval': False,  # train or evaluate model
 
     'sst_finegrained': True,  # used only when/if loading SST choooses [5, 2] classes
     'classes_num': 5,  # number of classes
@@ -17,11 +17,11 @@ config = {
     'pool_all_output': False,  # Do avg pooling over all outputs of RNN ** BROKEN DOESN'T USE **
     'attention': False,  # choose between tensorflows' attention or not (better not use it)
     'use_attention': True,  # use attention on the rnn outputs
-    'attention_GRU': True,  # for the simple RNN choose between producing the sentence representation through a weighted sum of attention or through an attention GRU as presented in  `Dynamic Memory Networks for Visual and Textual Question Answering`
+    'attention_GRU': False,  # for the simple RNN choose between producing the sentence representation through a weighted sum of attention or through an attention GRU as presented in  `Dynamic Memory Networks for Visual and Textual Question Answering`
     'split_dev': True,  # calculate dev set metrics in minibatches
     'dev_minibatch': 100,  # minibatch used for dev set if dev set tensor too big to fit in memory (looking at you bidirectional networks)
     'dim_proj': 300,  # both word embeding dimension and RNN number of hidden units.
-    'layers': 2,
+    'layers': 1,
     'batch_size': 120,  # The batch size during training.
     'n_epochs': 200,
     'n_words': None,  # Leave as None, dictionary size
@@ -36,7 +36,7 @@ config = {
     'l2_norm_w': 0.00,
 
     # DMN specific
-    'dmn': True,  # use a dynamic memory network
+    'dmn': False,  # use a dynamic memory network
     'episodes_num': 1,  # number of episodes in episodic module
 
 
@@ -62,10 +62,10 @@ config = {
     'word_vector_type': ['glove'],
     'pretrained_vectors': ['../datasets/glove_6B/glove.6B.300d.txt'],
 
-    'train_embeddings': [True, None],
-    'word_vector_type': ['W2V'],
-    'pretrained_vectors': ['../datasets/w2vec/GoogleNews-vectors-negative300' +
-                           '.bin'],
+    # 'train_embeddings': [True, None],
+    # 'word_vector_type': ['W2V'],
+    # 'pretrained_vectors': ['../datasets/w2vec/GoogleNews-vectors-negative300' +
+    #                        '.bin'],
 
     # random vectors only
     # 'train_embeddings': [True],

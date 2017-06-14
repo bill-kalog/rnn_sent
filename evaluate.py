@@ -30,7 +30,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
                     str(dim_) for dim_ in embd_matrix[index_])
                 embd_file.write('{} {}\n'.format(word, word_repr))
         print ("Saved words at: {}".format(embd_file_path))
-        sys.exit()
+        # sys.exit()
 
 
 
@@ -324,6 +324,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         #     len(prob_net), len(layer))
         process_utils.save_info(
             x_strings_batch, true_labels, y_net, prob_net, layer, path_)
+        print ("saved info to: {}".format(path_))
 
     # output directory for data
     timestamp = str(int(time.time()))
@@ -432,10 +433,13 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         # attention_fc_layer/Reshape_3
         if saved_conf['attention_GRU']:
             graph_state_ = g.get_operation_by_name(
-                    "attention_fc_layer/attention_GRU/rnn/while/Exit_2").outputs[0]
+                "attention_fc_layer/attention_GRU/rnn/while/Exit_2").outputs[0]
+        elif saved_conf['use_attention']:  # it only a weighted sum
+            graph_state_ = g.get_operation_by_name(
+                "attention_fc_layer/attention_weighted_sum/Sum").outputs[0]
         else:
             graph_state_ = g.get_operation_by_name(
-                    "attention_fc_layer/Reshape_3").outputs[0]          
+                "attention_fc_layer/Reshape_3").outputs[0]
     save_test_summary(
         x_test, y_test, dx_test, 'metrics_test_{}.pkl'.format(
             last_model[last_model.find("model-") + len("model-"):]))

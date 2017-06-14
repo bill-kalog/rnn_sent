@@ -18,8 +18,6 @@ class RNN(object):
         self.num_classes = config['classes_num']
         self.word_vectors = word_vectors
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
-        # self.str_summary_type = tf.placeholder(
-        #     tf.string, name="str_summary_type")
         self.input_keep_prob = tf.placeholder(
             tf.float32, name="keep_prob_inp")
         self.output_keep_prob = tf.placeholder(
@@ -28,11 +26,6 @@ class RNN(object):
         self.max_gradient_norm = config["clip_threshold"]
         self.x = tf.placeholder(tf.int32, [None, self.sentence_len], name="x")
         self.y = tf.placeholder(tf.float32, [None, self.num_classes], name="y")
-        # self.seq_lengths = tf.placeholder(
-        #     tf.int32, shape=[None], name="early_stop")
-        # self.seq_lengths = [self.n_words] * config['batch_size']
-        # self.seq_lengths = tf.placeholder(
-        #     tf.int32, shape=[None], name="seq_length")
 
         self.dropout_prob = tf.placeholder(tf.float32, name="dropout_prob")
 
@@ -41,8 +34,6 @@ class RNN(object):
         self.metrics_weight = tf.placeholder(tf.float32, name="metrics_weight")
         self.fixed_acc_value = tf.placeholder(tf.float32, name="f_acc_value")
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
-        # self.train_phase = tf.placeholder(tf.bool, name="train_flag")
-
 
         self.make_graph(config)
         self.summarize(config)
@@ -219,8 +210,6 @@ class RNN(object):
 
                 # self.state = state[-1][0] + state[-1][1]
                 # self.state_ = tf.concat([state[-1][0], state[-1][1]], 1)
-
-                # self.state_all = state
 
         if config["pooling"]:
             '''
@@ -408,9 +397,7 @@ class RNN_Attention(object):
         self.metrics_weight = tf.placeholder(tf.float32, name="metrics_weight")
         self.fixed_acc_value = tf.placeholder(tf.float32, name="f_acc_value")
         self.fixed_loss_value = tf.placeholder(tf.float32, name="f_loss_value")
-        # self.train_phase = tf.placeholder(tf.bool, name="train_flag")
         self.make_graph(config)
-        # self.attention()
         self.train()
         self.summarize(config)
 
@@ -430,8 +417,6 @@ class RNN_Attention(object):
                 initializer=tf.constant_initializer(
                     np.array(self.word_vectors[index_]))
             )
-            print (self.w_embeddings, " embdifingsf")
-            sys.exit()
             embedded_tokens = tf.nn.embedding_lookup(
                 self.w_embeddings, self.x)
             print("emb_tokens {} rnn_input  ".format(embedded_tokens.shape))
@@ -499,7 +484,6 @@ class RNN_Attention(object):
             self.out_state = state
             self.output = output
 
-        # self.attention_old(config)
         # self.attention_old(config)
         self.attention(config)
 
