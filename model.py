@@ -210,7 +210,6 @@ class RNN(object):
 
                 # self.state = state[-1][0] + state[-1][1]
                 # self.state_ = tf.concat([state[-1][0], state[-1][1]], 1)
-
         if config["pooling"]:
             '''
             avg pooling over [output/state]

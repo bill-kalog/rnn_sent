@@ -61,4 +61,45 @@ the following hyperparameters can be changed inside `conf.py`
 |word_vector_type| list of types of pretrained word embeddings to be loaded or empty if using just random  |
 |pretrained_vectors| list of paths for the pretrained vectors or and empty list if using only random |
 
+### plotting
+
+There is a possibility to produce a couple of different types of plots from
+the pickle files  generated during training or evaluation.
+
+#### attention
+
+based on attention figures at [Ask Me Anything: Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/abs/1506.07285) one can generate
+similar images using `plot_attention.py` like
+
+![alt text](img/attGRU.png "attention from an RNN using attentionGRU cells")
+
+for DMNs or RNNs using attention
+
+#### magnitude of the dimensions of sentences
+
+The mean of each dimension of sentences per class can be plotted using `stats.py` too
+
+![alt text](img/attS_fine_2classes.png "mean magnitude of dimensions of correctly classified sentences")
+
+One can generate similar plots for all classes, max and mean values etc...
+
+### word similarities
+
+Several benchmarks for measuring word similarity (`word_similarity.py`) of the trained 
+word vectors are supported. Code for measuring spearman correlation is
+based on this [repo](https://github.com/nmrksic/eval-multilingual-simlex).
+Currently supported benchmarks:
+- [SimLex-999](http://www.cl.cam.ac.uk/~fh295/simlex.html)
+- [SimVerb](http://people.ds.cam.ac.uk/dsg40/simverb.html)
+- [Rare Word](http://www.bigdatalab.ac.cn/benchmark/bm/dd?data=Rare%20Word)
+- [MEN](https://staff.fnwi.uva.nl/e.bruni/MEN)
+- [WordSim-353](http://www.cs.technion.ac.il/~gabr/resources/data/wordsim353/)
+
+
+### TODO
+
+- [ ] update running info
+- [ ] tidy up model declaration code
+- [ ] make an automatic pipeline of generating images from pickles 
+- [ ] remove clatter
 

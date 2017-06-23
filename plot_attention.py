@@ -6,70 +6,90 @@ import collections
 
 
 # print accuracy per sentence length
-files_ = ["attention_test_.json", "attention_test_1.json"]
-files_ = ['bidGRU-attGRU.json', 'DMN-1.json', 'DMN-2.json']
+#
+#
 
-legend = ['bidGRU-attGRU', 'DMN-1', 'DMN-2']
-for index_, filename_ in enumerate(files_):
-    with open(filename_) as json_data:
-        att_dic = json.load(json_data)
+# files_ = ["attention_test_.json", "attention_test_1.json"]
+# files_ = ['bidGRU-attGRU.json', 'DMN-1.json', 'DMN-2.json']
 
-    correct_per_length = {}
-    wrong_per_length = {}
-    for sentence in att_dic:
-        # print (sentence)
-        sent_len = att_dic[sentence]["sent_length"]
-        if att_dic[sentence]["true_label"] == att_dic[sentence]["predicted_label"]:
-            correct_per_length[sent_len] = correct_per_length.get(sent_len, 0) + 1
-        else:
-            wrong_per_length[sent_len] = wrong_per_length.get(sent_len, 0) + 1
-    # print (wrong_per_length)
+# legend = ['bidGRU-attGRU', 'DMN-1', 'DMN-2']
+# for index_, filename_ in enumerate(files_):
+#     with open(filename_) as json_data:
+#         att_dic = json.load(json_data)
 
-    acc_ = {}
-    # [wrong, correct]
-    # print (wrong_per_length)
-    for length_ in wrong_per_length:
-        acc_[length_] = [wrong_per_length[length_], 0]
-    for length_ in correct_per_length:
-        a = acc_.get(length_, 0)
-        if type(a) is list:
-            a = a[0]
-        acc_[length_] = [a, correct_per_length[length_]]
-    # print (acc_)
-    od = collections.OrderedDict(sorted(acc_.items()))
-    print (od)
-    x = []
-    y = []
-    for k, val_ in od.items():
-        print (val_)
-        acc_calc = val_[1] / (val_[1] + val_[0])
-        y.append(acc_calc)
-        x.append(k)
-    print (y)
-    print (x)
-    plt.plot(x, y, marker='o', label=legend[index_])
-plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-           ncol=2, mode="expand", borderaxespad=0.)
-plt.ylabel('accuracy')
-plt.xlabel('sentence length')
-plt.show()
-sys.exit()
+#     correct_per_length = {}
+#     wrong_per_length = {}
+#     for sentence in att_dic:
+#         # print (sentence)
+#         sent_len = att_dic[sentence]["sent_length"]
+#         if att_dic[sentence]["true_label"] == att_dic[sentence]["predicted_label"]:
+#             correct_per_length[sent_len] = correct_per_length.get(sent_len, 0) + 1
+#         else:
+#             wrong_per_length[sent_len] = wrong_per_length.get(sent_len, 0) + 1
+#     # print (wrong_per_length)
+
+#     acc_ = {}
+#     # [wrong, correct]
+#     # print (wrong_per_length)
+#     for length_ in wrong_per_length:
+#         acc_[length_] = [wrong_per_length[length_], 0]
+#     for length_ in correct_per_length:
+#         a = acc_.get(length_, 0)
+#         if type(a) is list:
+#             a = a[0]
+#         acc_[length_] = [a, correct_per_length[length_]]
+#     # print (acc_)
+#     od = collections.OrderedDict(sorted(acc_.items()))
+#     print (od)
+#     x = []
+#     y = []
+#     for k, val_ in od.items():
+#         print (val_)
+#         acc_calc = val_[1] / (val_[1] + val_[0])
+#         y.append(acc_calc)
+#         x.append(k)
+#     print (y)
+#     print (x)
+#     plt.plot(x, y, marker='o', label=legend[index_])
+# plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+#            ncol=2, mode="expand", borderaxespad=0.)
+# plt.ylabel('accuracy')
+# plt.xlabel('sentence length')
+# plt.show()
+# sys.exit()
+
+################
+################
 
 # print attention weights
 # plot attention distribution of a classified sentence
 # info from
 # http://stackoverflow.com/questions/14391959/heatmap-in-matplotlib-with-pcolor?noredirect=1&lq=1
 filename_ = "attention_test_.json"
+filename_ = "./representations/attGRU.json"
+filename_ = "./representations/attS.json"
+filename_ = "./representations/DMN_2_f.json"
+filename_ = "./representations/DMN_1_f.json"
+
 sentence_ids = ["sent_id_659", "sent_id_1652"]
 sentence_ids = ["sent_id_983"]
 sentence_ids = ["sent_id_1650", "sent_id_188", "sent_id_324", "sent_id_1458"] # RNN
 sentence_ids = ["sent_id_389", "sent_id_1395", "sent_id_980", "sent_id_1735"] # 2 ep DMN
 sentence_ids = ["sent_id_{}".format(i) for i in range(6)]
 
-plain_rnn = True
+# attentionGRU finegrained
+sentence_ids = ["sent_id_477", "sent_id_749", "sent_id_917", "sent_id_1135", "sent_id_1156"]
+
+# attentioS finegrained
+sentence_ids = ["sent_id_477", "sent_id_749", "sent_id_917", "sent_id_1135", "sent_id_1156"]
+
+plain_rnn = False
 with open(filename_) as json_data:
     att_dic = json.load(json_data)
 
+fig = plt.figure()
+plt_index = 0
+subplots_num = len(sentence_ids)
 for sent_id in sentence_ids:
     words = []
     attentions_list = []
@@ -83,7 +103,11 @@ for sent_id in sentence_ids:
         else:
             attentions_list.append(attentions)
     print (attentions_list)
-    fig, ax = plt.subplots()
+    # fig, ax = plt.subplots()
+
+    ax = fig.add_subplot(subplots_num, 1, plt_index % subplots_num + 1)
+    plt_index += 1
+
     # transpose output to be [episode, words]
     attentions_arr = np.asarray(attentions_list).T
 
@@ -107,6 +131,6 @@ for sent_id in sentence_ids:
 
     # print (words)
     ax.set_xticklabels(words, minor=False)
-    plt.show()
+plt.show()
     # sys.exit()
 

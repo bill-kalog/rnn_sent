@@ -397,7 +397,7 @@ def eval_model(sess, g, checkpoint_paths, data, config):
         "predict/Softmax").outputs[0]
     graph_embeddings = g.get_operation_by_name(
         "W0_0/read").outputs[0]
-    if saved_conf["use_attention"] or saved_conf["attention_GRU"] or use_dmn:
+    if saved_conf["use_attention"] or use_dmn:
         # retrieve approriate operations_by_name
         if use_dmn:
             graph_all_attentions = g.get_operation_by_name(
@@ -426,20 +426,27 @@ def eval_model(sess, g, checkpoint_paths, data, config):
             graph_state_ = g.get_operation_by_name(
                 "episodic_module/memory_update/Tanh").outputs[0]
         else:
+            # graph_state_ = g.get_operation_by_name(
+            #     "episodic_module/memory_update_{}/Relu".format(
+            #         saved_conf['episodes_num'] - 1)).outputs[0]
             graph_state_ = g.get_operation_by_name(
-                "episodic_module/memory_update_{}/Relu".format(
+                "episodic_module/memory_update_{}/Tanh".format(
                     saved_conf['episodes_num'] - 1)).outputs[0]
     else:  # TODO for normal lstm
         # attention_fc_layer/Reshape_3
-        if saved_conf['attention_GRU']:
+        if saved_conf['attention_GRU'] and saved_conf['use_attention']:
             graph_state_ = g.get_operation_by_name(
                 "attention_fc_layer/attention_GRU/rnn/while/Exit_2").outputs[0]
         elif saved_conf['use_attention']:  # it only a weighted sum
             graph_state_ = g.get_operation_by_name(
                 "attention_fc_layer/attention_weighted_sum/Sum").outputs[0]
         else:
+            # graph_state_ = g.get_operation_by_name(
+            #     "attention_fc_layer/Reshape_3").outputs[0]
+
+            # plain RNN
             graph_state_ = g.get_operation_by_name(
-                "attention_fc_layer/Reshape_3").outputs[0]
+                "rnn_cell/concat_51").outputs[0]
     save_test_summary(
         x_test, y_test, dx_test, 'metrics_test_{}.pkl'.format(
             last_model[last_model.find("model-") + len("model-"):]))

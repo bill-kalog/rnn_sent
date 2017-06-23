@@ -132,6 +132,9 @@ def evaluate_similarity(
 
     for (x, y) in pair_list:
         (word_i, word_j) = x
+        non_existent = ["sermonize"]
+        if word_j in non_existent:
+            continue
         index_i = word_vectors.word_to_index[word_i]
         index_j = word_vectors.word_to_index[word_j]
         vector_i = word_vectors.vectors[index_i]
@@ -147,6 +150,8 @@ def evaluate_similarity(
     spearman_target_list = []
 
     for position_1, (word_pair, score_1) in enumerate(pair_list):
+        if word_pair[1] in non_existent:
+            continue
         score_2 = extracted_scores[word_pair]
         position_2 = extracted_list.index((word_pair, score_2))
         spearman_original_list.append(position_1)
@@ -176,7 +181,11 @@ def main():
     # words_path = "./runs/1496739336/evaluations/1496933648/words_embds.csv"
     # words_path = "./runs/1496969351/best_snaps/../evaluations/1497016586/words_embds.csv"
     # words_path = "./runs/1497028147/best_snaps/../evaluations/1497092785/words_embds.csv"
-    words_path = "./runs/1497313304/best_snaps/../evaluations/1497438814/words_embds.csv"
+    # words_path = "./runs/1497313304/best_snaps/../evaluations/1497438814/words_embds.csv"
+    # words_path = "./runs/1497517616/best_snaps/../evaluations/1497862652/words_embds.csv"
+    # words_path = "./runs/1497815260/best_snaps/../evaluations/1498091033/words_embds.csv"
+    # words_path = "./runs/1497894091/best_snaps/../evaluations/1498148645/words_embds.csv"
+    words_path = "./runs/1498124433/best_snaps/../evaluations/1498157705/words_embds.csv"
     pretrained_vectors.append(WordVectors(
         type_, words_path))
     config['word_vector_type'].append(type_)
